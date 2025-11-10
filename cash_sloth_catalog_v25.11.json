@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "name": "Alkoholische Getraenke",
+      "articles": [
+        {
+          "name": "Bier",
+          "price": 4.0,
+          "barcode": "761000000001"
+        },
+        {
+          "name": "Wein",
+          "price": 19.0,
+          "barcode": "761000000002"
+        },
+        {
+          "name": "Schnaps",
+          "price": 5.0,
+          "barcode": "761000000003"
+        }
+      ]
+    },
+    {
+      "name": "Softgetraenke",
+      "articles": [
+        {
+          "name": "3dl Getraenk",
+          "price": 2.0,
+          "barcode": "761000000101"
+        },
+        {
+          "name": "1.5l Getraenk",
+          "price": 7.0,
+          "barcode": "761000000102"
+        }
+      ]
+    },
+    {
+      "name": "Snacks",
+      "articles": [
+        {
+          "name": "Russenzopf & Kaffee",
+          "price": 3.0,
+          "barcode": "761000000201"
+        },
+        {
+          "name": "Sandwich Salami",
+          "price": 6.5,
+          "barcode": "761000000202"
+        }
+      ]
+    },
+    {
+      "name": "Kaffee & Tee",
+      "articles": [
+        {
+          "name": "Espresso",
+          "price": 2.5,
+          "barcode": "761000000301"
+        },
+        {
+          "name": "Cappuccino",
+          "price": 3.5,
+          "barcode": "761000000302"
+        },
+        {
+          "name": "Grüntee",
+          "price": 3.5,
+          "barcode": null
+        },
+        {
+          "name": "Scharztee",
+          "price": 4.0,
+          "barcode": null
+        },
+        {
+          "name": "Lungo",
+          "price": 2.5,
+          "barcode": null
+        }
+      ]
+    }
+  ]
+}

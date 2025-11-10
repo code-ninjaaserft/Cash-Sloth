@@ -1,0 +1,54 @@
+﻿{
+  "version": "25.11.10",
+  "palette": {
+    "background": "#070C16",
+    "background_glow": "#111B2F",
+    "panel_base": "#101624",
+    "panel_elevated": "#182238",
+    "panel_border": "#283248",
+    "accent": "#7C6BFF",
+    "accent_strong": "#6953FF",
+    "accent_soft": "#AFC0FF",
+    "text_primary": "#F5F8FF",
+    "text_secondary": "#7E8CAA",
+    "success": "#55D6A1",
+    "danger": "#FF8FA0",
+    "tile_base": "#1C2438",
+    "tile_raised": "#222E46",
+    "quick_base": "#1F273C",
+    "quick_pressed": "#182034",
+    "action_base": "#252F47"
+  },
+  "metrics": {
+    "margin": 28,
+    "info_height": 64,
+    "summary_height": 56,
+    "gap": 20,
+    "left_column_width": 300,
+    "right_column_width": 340,
+    "category_height": 88,
+    "category_spacing": 16,
+    "product_tile_height": 152,
+    "tile_gap": 18,
+    "quick_button_height": 58,
+    "quick_columns": 3,
+    "action_button_height": 66,
+    "panel_radius": 32,
+    "button_radius": 22
+  },
+  "typography": {
+    "font_family": "Segoe UI",
+    "heading": {"size": 32, "weight": "semibold"},
+    "tile": {"size": 26, "weight": "bold"},
+    "button": {"size": 23, "weight": "semibold"},
+    "body": {"size": 18, "weight": "normal"}
+  },
+  "quick_amounts": [0.5, 1, 2, 5, 10, 20, 50, 100],
+  "hero": {
+    "title": "Cash-Sloth Aurora POS",
+    "subtitle": "Smooth touch-first layout inspired by the Python build",
+    "badge": "Aurora Edition"
+  },
+  "glass_strength": 0.22,
+  "accent_glow": 0.32
+}
