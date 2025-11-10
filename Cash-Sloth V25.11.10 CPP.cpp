@@ -16,19 +16,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cash_sloth_json.h"
-#include "cash_sloth_style.h"
-#include "cash_sloth_utils.h"
-
 #if defined(_MSC_VER)
 #pragma comment(lib, "Msimg32.lib")
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdi32.lib")
 #pragma comment(lib, "UxTheme.lib")
-#else
-// MinGW / GCC builds must link these libraries manually, e.g.:
-//   g++ Cash-Sloth\ V25.11.10\ CPP.cpp cash_sloth_style.cpp cash_sloth_json.cpp -municode -mwindows -lgdi32 -lcomctl32 -luxtheme -lmsimg32
-#endif
 
 namespace cashsloth {
 
@@ -1248,8 +1240,8 @@ void CashSlothGUI::refreshCart() {
         std::wstringstream ws;
         ws << index << L". " << toWide(item.article->name) << L"  x" << item.quantity
            << L"  " << toWide(formatCurrency(item.article->price * static_cast<double>(item.quantity)));
-        cartDisplayLines_.push_back(ws.str());
-        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(cartDisplayLines_.back().c_str()));
+        const std::wstring line = ws.str();
+        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
         ++index;
     }
     SendMessageW(cartList_, WM_SETREDRAW, TRUE, 0);
@@ -1638,6 +1630,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
         MessageBoxW(nullptr, L"Unbekannter Fehler ist aufgetreten.", kWindowTitle, MB_ICONERROR | MB_OK);
     }
     return EXIT_FAILURE;
+}
+
+#if !defined(UNICODE) && !defined(_UNICODE)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
+    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }
 
 #if !defined(UNICODE) && !defined(_UNICODE)
