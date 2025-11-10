@@ -10,6 +10,7 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -19,6 +20,9 @@
 #include <vector>
 
 #pragma comment(lib, "Msimg32.lib")
+#pragma comment(lib, "Comctl32.lib")
+#pragma comment(lib, "Gdi32.lib")
+#pragma comment(lib, "UxTheme.lib")
 
 namespace cashsloth {
 
@@ -1116,6 +1120,7 @@ public:
 
 private:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static constexpr UINT_PTR kAnimationTimerId = 1;
 
     void onCreate();
     void onDestroy();
@@ -1124,6 +1129,7 @@ private:
     HBRUSH onCtlColorStatic(HDC dc, HWND hwnd);
     HBRUSH onCtlColorPanel(HDC dc);
     void onPaint();
+    void onTimer(UINT_PTR timerId);
 
     void initDpiAndResources();
     void releaseGdiResources();
@@ -1158,6 +1164,7 @@ private:
     HFONT createFont(const StyleSheet::FontSpec& spec) const;
     void ensureSectionTitle(HWND& handle, const std::wstring& text, int x, int y, int width);
     int scale(int value) const;
+    void updateAnimation();
 
     HINSTANCE instance_;
     HWND window_ = nullptr;
@@ -1217,6 +1224,11 @@ private:
     UINT dpiY_ = 96;
 
     int selectedCategoryIndex_ = 0;
+
+    double accentPulse_ = 0.5;
+    double animationTime_ = 0.0;
+    ULONGLONG lastAnimationTick_ = 0;
+    bool animationTimerActive_ = false;
 };
 CashSlothGUI::CashSlothGUI(HINSTANCE instance)
     : instance_(instance) {
@@ -1275,11 +1287,23 @@ int CashSlothGUI::run(int nCmdShow) {
     UpdateWindow(window);
 
     MSG msg{};
-    while (GetMessageW(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+    int exitCode = EXIT_SUCCESS;
+    while (true) {
+        const BOOL result = GetMessageW(&msg, nullptr, 0, 0);
+        if (result > 0) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+            continue;
+        }
+
+        if (result == 0) {
+            exitCode = static_cast<int>(msg.wParam);
+        } else {
+            exitCode = EXIT_FAILURE;
+        }
+        break;
     }
-    return static_cast<int>(msg.wParam);
+    return exitCode;
 }
 
 LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -1317,6 +1341,9 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
         case WM_PAINT:
             self->onPaint();
             return 0;
+        case WM_TIMER:
+            self->onTimer(static_cast<UINT_PTR>(wParam));
+            return 0;
         case WM_DESTROY:
             self->onDestroy();
             return 0;
@@ -1337,9 +1364,18 @@ void CashSlothGUI::onCreate() {
     refreshCart();
     refreshStatus();
     showInfo(infoText_);
+
+    accentPulse_ = 0.5;
+    animationTime_ = 0.0;
+    lastAnimationTick_ = GetTickCount64();
+    animationTimerActive_ = SetTimer(window_, kAnimationTimerId, 16, nullptr) != 0;
 }
 
 void CashSlothGUI::onDestroy() {
+    if (animationTimerActive_) {
+        KillTimer(window_, kAnimationTimerId);
+        animationTimerActive_ = false;
+    }
     releaseGdiResources();
     PostQuitMessage(0);
 }
@@ -1462,6 +1498,12 @@ void CashSlothGUI::onPaint() {
     drawPanel(dc, cartPanelRect());
 
     EndPaint(window_, &ps);
+}
+
+void CashSlothGUI::onTimer(UINT_PTR timerId) {
+    if (timerId == kAnimationTimerId) {
+        updateAnimation();
+    }
 }
 void CashSlothGUI::initDpiAndResources() {
     HDC screen = GetDC(window_);
@@ -1911,7 +1953,8 @@ void CashSlothGUI::refreshCart() {
         std::wstringstream ws;
         ws << index << L". " << toWide(item.article->name) << L"  x" << item.quantity
            << L"  " << toWide(formatCurrency(item.article->price * static_cast<double>(item.quantity)));
-        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(ws.str().c_str()));
+        const std::wstring line = ws.str();
+        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
         ++index;
     }
     SendMessageW(cartList_, WM_SETREDRAW, TRUE, 0);
@@ -2140,6 +2183,38 @@ void CashSlothGUI::drawPanel(HDC dc, const RECT& area) const {
     SelectObject(dc, oldBrush);
 }
 
+void CashSlothGUI::updateAnimation() {
+    if (!window_) {
+        return;
+    }
+
+    const ULONGLONG now = GetTickCount64();
+    if (lastAnimationTick_ == 0) {
+        lastAnimationTick_ = now;
+        return;
+    }
+
+    const double deltaSeconds = static_cast<double>(now - lastAnimationTick_) / 1000.0;
+    lastAnimationTick_ = now;
+    animationTime_ += deltaSeconds;
+
+    constexpr double kTwoPi = 6.28318530717958647692;
+    const double pulse = 0.5 + 0.5 * std::sin(animationTime_ * kTwoPi * 0.35);
+    if (std::fabs(pulse - accentPulse_) < 0.001) {
+        return;
+    }
+
+    accentPulse_ = std::clamp(pulse, 0.0, 1.0);
+
+    RECT accentArea{
+        std::max(clientRect_.left, clientRect_.right - scale(560)),
+        clientRect_.top,
+        clientRect_.right,
+        clientRect_.top + scale(360)
+    };
+    InvalidateRect(window_, &accentArea, FALSE);
+}
+
 void CashSlothGUI::drawBackdrop(HDC dc) const {
     FillRect(dc, &clientRect_, backgroundBrush_);
 
@@ -2153,13 +2228,24 @@ void CashSlothGUI::drawBackdrop(HDC dc) const {
     RECT accentRect = clientRect_;
     accentRect.left = clientRect_.right - scale(420);
     accentRect.bottom = clientRect_.top + scale(260);
+    const double easedPulse = accentPulse_ * accentPulse_ * (3.0 - 2.0 * accentPulse_);
+    const int padLeft = scale(140 + static_cast<int>(easedPulse * 60.0));
+    const int padTop = scale(140 + static_cast<int>(easedPulse * 80.0));
+    const int padRight = scale(80 + static_cast<int>(easedPulse * 40.0));
+    const int padBottom = scale(60 + static_cast<int>(easedPulse * 50.0));
     const int state = SaveDC(dc);
-    HRGN clip = CreateEllipticRgn(accentRect.left - scale(160), accentRect.top - scale(160),
-                                  accentRect.right + scale(80), accentRect.bottom + scale(40));
+    HRGN clip = CreateEllipticRgn(
+        accentRect.left - padLeft,
+        accentRect.top - padTop,
+        accentRect.right + padRight,
+        accentRect.bottom + padBottom);
     SelectClipRgn(dc, clip);
+    const double glowStrength = std::clamp(style_.accentGlow + (accentPulse_ - 0.5) * 0.25, 0.05, 0.75);
+    const COLORREF accentCore = mixColor(style_.palette.accentStrong, style_.palette.accentSoft, easedPulse);
+    const COLORREF accentFade = mixColor(accentCore, style_.palette.background, 1.0 - glowStrength);
     TRIVERTEX accentVerts[2] = {
-        makeVertex(accentRect.left, accentRect.top, mixColor(style_.palette.accentStrong, style_.palette.background, style_.accentGlow)),
-        makeVertex(accentRect.right, accentRect.bottom, style_.palette.background),
+        makeVertex(accentRect.left, accentRect.top, accentCore),
+        makeVertex(accentRect.right, accentRect.bottom, accentFade),
     };
     GradientFill(dc, accentVerts, 2, &rect, 1, GRADIENT_FILL_RECT_H);
     RestoreDC(dc, state);
@@ -2246,3 +2332,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     CashSlothGUI app(hInstance);
     return app.run(nCmdShow);
 }
+
+#if !defined(UNICODE) && !defined(_UNICODE)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
+    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
+}
+#endif
