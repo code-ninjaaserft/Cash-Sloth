@@ -1950,7 +1950,8 @@ void CashSlothGUI::refreshCart() {
         std::wstringstream ws;
         ws << index << L". " << toWide(item.article->name) << L"  x" << item.quantity
            << L"  " << toWide(formatCurrency(item.article->price * static_cast<double>(item.quantity)));
-        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(ws.str().c_str()));
+        const std::wstring line = ws.str();
+        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
         ++index;
     }
     SendMessageW(cartList_, WM_SETREDRAW, TRUE, 0);
