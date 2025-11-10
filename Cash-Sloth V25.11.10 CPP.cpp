@@ -24,10 +24,6 @@
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdi32.lib")
 #pragma comment(lib, "UxTheme.lib")
-#else
-// MinGW / GCC builds must link these libraries manually, e.g.:
-//   g++ Cash-Sloth\ V25.11.10\ CPP.cpp -municode -mwindows -lgdi32 -lcomctl32 -luxtheme -lmsimg32
-#endif
 
 namespace cashsloth {
 
