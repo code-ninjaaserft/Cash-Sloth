@@ -19,6 +19,7 @@
 #include <variant>
 #include <vector>
 
+#if defined(_MSC_VER)
 #pragma comment(lib, "Msimg32.lib")
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdi32.lib")
