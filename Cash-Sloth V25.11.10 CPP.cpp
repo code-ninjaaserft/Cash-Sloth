@@ -20,6 +20,9 @@
 #include <vector>
 
 #pragma comment(lib, "Msimg32.lib")
+#pragma comment(lib, "Comctl32.lib")
+#pragma comment(lib, "Gdi32.lib")
+#pragma comment(lib, "UxTheme.lib")
 
 namespace cashsloth {
 
@@ -2329,3 +2332,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     CashSlothGUI app(hInstance);
     return app.run(nCmdShow);
 }
+
+#if !defined(UNICODE) && !defined(_UNICODE)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
+    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
+}
+#endif
