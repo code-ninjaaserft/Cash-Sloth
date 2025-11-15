@@ -5,19 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CASH_SLOTH_SOURCES
+add_executable(cash-sloth WIN32
     src/main.cpp
-    src/cash_sloth_json.cpp)
-
-if (WIN32)
-    list(APPEND CASH_SLOTH_SOURCES src/cash_sloth_style.cpp)
-endif()
-
-if (WIN32)
-    add_executable(cash-sloth WIN32 ${CASH_SLOTH_SOURCES})
-else()
-    add_executable(cash-sloth ${CASH_SLOTH_SOURCES})
-endif()
+    src/cash_sloth_json.cpp
+    src/cash_sloth_style.cpp
+)
 
 target_include_directories(cash-sloth PRIVATE include)
 
@@ -33,6 +25,9 @@ endif()
 
 if (WIN32)
     target_link_libraries(cash-sloth PRIVATE comctl32 gdi32 uxtheme msimg32)
+endif()
+
+if (MSVC)
     add_custom_command(TARGET cash-sloth POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:cash-sloth>/assets"
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:cash-sloth>/assets")
