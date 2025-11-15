@@ -5,10 +5,19 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(cash-sloth
+set(CASH_SLOTH_SOURCES
     src/main.cpp
-    src/cash_sloth_json.cpp
-    src/cash_sloth_style.cpp)
+    src/cash_sloth_json.cpp)
+
+if (WIN32)
+    list(APPEND CASH_SLOTH_SOURCES src/cash_sloth_style.cpp)
+endif()
+
+if (WIN32)
+    add_executable(cash-sloth WIN32 ${CASH_SLOTH_SOURCES})
+else()
+    add_executable(cash-sloth ${CASH_SLOTH_SOURCES})
+endif()
 
 target_include_directories(cash-sloth PRIVATE include)
 
