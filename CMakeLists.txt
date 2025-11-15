@@ -13,18 +13,19 @@ add_executable(cash-sloth WIN32
 
 target_include_directories(cash-sloth PRIVATE include)
 
+if (WIN32)
+    target_compile_definitions(cash-sloth PRIVATE UNICODE _UNICODE)
+    target_link_libraries(cash-sloth PRIVATE comctl32 gdi32 uxtheme msimg32)
+    set_target_properties(cash-sloth PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
 if (MSVC)
     target_compile_options(cash-sloth PRIVATE /W4 /permissive- /utf-8)
-    target_compile_definitions(cash-sloth PRIVATE UNICODE _UNICODE)
 else()
     target_compile_options(cash-sloth PRIVATE -Wall -Wextra -Wpedantic)
     if (MINGW)
         target_compile_options(cash-sloth PRIVATE -municode)
     endif()
-endif()
-
-if (WIN32)
-    target_link_libraries(cash-sloth PRIVATE comctl32 gdi32 uxtheme msimg32)
 endif()
 
 if (MSVC)
