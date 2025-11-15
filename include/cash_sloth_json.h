@@ -51,6 +51,7 @@ public:
     JsonValue parse();
 
 private:
+    void skipBom();
     JsonValue parseValue();
     JsonValue parseObject();
     JsonValue parseArray();
