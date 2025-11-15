@@ -2,6 +2,10 @@
 
 #include <cctype>
 #include <string>
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 
 namespace cashsloth {

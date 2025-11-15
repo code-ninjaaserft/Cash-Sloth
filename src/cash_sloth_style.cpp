@@ -91,7 +91,7 @@ StyleSheet StyleSheet::load(const std::filesystem::path& baseDir) {
             sheet.metrics.productTileHeight = intOr("product_tile_height", sheet.metrics.productTileHeight);
             sheet.metrics.tileGap = intOr("tile_gap", sheet.metrics.tileGap);
             sheet.metrics.quickButtonHeight = intOr("quick_button_height", sheet.metrics.quickButtonHeight);
-            sheet.metrics.quickColumns = std::max(1, intOr("quick_columns", sheet.metrics.quickColumns));
+            sheet.metrics.quickColumns = (std::max)(1, intOr("quick_columns", sheet.metrics.quickColumns));
             sheet.metrics.actionButtonHeight = intOr("action_button_height", sheet.metrics.actionButtonHeight);
             sheet.metrics.panelRadius = intOr("panel_radius", sheet.metrics.panelRadius);
             sheet.metrics.buttonRadius = intOr("button_radius", sheet.metrics.buttonRadius);
