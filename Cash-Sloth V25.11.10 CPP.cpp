@@ -6,350 +6,31 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <map>
 #include <optional>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
+#include "cash_sloth_json.h"
+#include "cash_sloth_style.h"
+#include "cash_sloth_utils.h"
+
+#if defined(_MSC_VER)
 #pragma comment(lib, "Msimg32.lib")
+#pragma comment(lib, "Comctl32.lib")
+#pragma comment(lib, "Gdi32.lib")
+#pragma comment(lib, "UxTheme.lib")
+#else
+// MinGW / GCC builds must link these libraries manually, e.g.:
+//   g++ Cash-Sloth\ V25.11.10\ CPP.cpp cash_sloth_style.cpp cash_sloth_json.cpp -municode -mwindows -lgdi32 -lcomctl32 -luxtheme -lmsimg32
+#endif
 
 namespace cashsloth {
-
-class JsonValue {
-public:
-    using Object = std::map<std::string, JsonValue>;
-    using Array = std::vector<JsonValue>;
-    using Storage = std::variant<std::nullptr_t, bool, double, std::string, Array, Object>;
-
-    JsonValue() : storage_(nullptr) {}
-    JsonValue(std::nullptr_t) : storage_(nullptr) {}
-    JsonValue(bool value) : storage_(value) {}
-    JsonValue(double value) : storage_(value) {}
-    JsonValue(std::string value) : storage_(std::move(value)) {}
-    JsonValue(const char* value) : storage_(std::string(value)) {}
-    JsonValue(Array value) : storage_(std::move(value)) {}
-    JsonValue(Object value) : storage_(std::move(value)) {}
-
-    bool isNull() const { return std::holds_alternative<std::nullptr_t>(storage_); }
-    bool isBool() const { return std::holds_alternative<bool>(storage_); }
-    bool isNumber() const { return std::holds_alternative<double>(storage_); }
-    bool isString() const { return std::holds_alternative<std::string>(storage_); }
-    bool isArray() const { return std::holds_alternative<Array>(storage_); }
-    bool isObject() const { return std::holds_alternative<Object>(storage_); }
-
-    bool asBool(bool fallback = false) const { return isBool() ? std::get<bool>(storage_) : fallback; }
-    double asNumber(double fallback = 0.0) const { return isNumber() ? std::get<double>(storage_) : fallback; }
-    const std::string& asString() const { return std::get<std::string>(storage_); }
-    const Array& asArray() const { return std::get<Array>(storage_); }
-    const Object& asObject() const { return std::get<Object>(storage_); }
-
-    Array& asArray() { return std::get<Array>(storage_); }
-    Object& asObject() { return std::get<Object>(storage_); }
-
-private:
-    Storage storage_;
-};
-
-class JsonParser {
-public:
-    explicit JsonParser(std::string_view text) : text_(text) {}
-
-    JsonValue parse() {
-        skipWhitespace();
-        JsonValue value = parseValue();
-        skipWhitespace();
-        if (cursor_ != text_.size()) {
-            error("Unexpected characters after JSON value");
-        }
-        return value;
-    }
-
-private:
-    JsonValue parseValue() {
-        skipWhitespace();
-        if (cursor_ >= text_.size()) {
-            error("Unexpected end of input while parsing value");
-        }
-        char ch = peek();
-        switch (ch) {
-            case '{':
-                return parseObject();
-            case '[':
-                return parseArray();
-            case '"':
-                return JsonValue(parseString());
-            case 't':
-                return parseTrue();
-            case 'f':
-                return parseFalse();
-            case 'n':
-                return parseNull();
-            default:
-                if (ch == '-' || std::isdigit(static_cast<unsigned char>(ch))) {
-                    return parseNumber();
-                }
-                error("Unexpected character while parsing value");
-        }
-    }
-
-    JsonValue parseObject() {
-        expect('{');
-        skipWhitespace();
-        JsonValue::Object object;
-        if (consume('}')) {
-            return JsonValue(std::move(object));
-        }
-
-        while (true) {
-            skipWhitespace();
-            if (peek() != '"') {
-                error("Expected string key inside JSON object");
-            }
-            std::string key = parseString();
-            skipWhitespace();
-            expect(':');
-            skipWhitespace();
-            JsonValue value = parseValue();
-            object.emplace(std::move(key), std::move(value));
-            skipWhitespace();
-            if (consume('}')) {
-                break;
-            }
-            expect(',');
-        }
-        return JsonValue(std::move(object));
-    }
-
-    JsonValue parseArray() {
-        expect('[');
-        skipWhitespace();
-        JsonValue::Array array;
-        if (consume(']')) {
-            return JsonValue(std::move(array));
-        }
-        while (true) {
-            array.push_back(parseValue());
-            skipWhitespace();
-            if (consume(']')) {
-                break;
-            }
-            expect(',');
-        }
-        return JsonValue(std::move(array));
-    }
-
-    JsonValue parseNumber() {
-        const std::size_t start = cursor_;
-        if (peek() == '-') {
-            advance();
-        }
-        if (cursor_ >= text_.size()) {
-            error("Incomplete number literal");
-        }
-
-        if (peek() == '0') {
-            advance();
-        } else if (std::isdigit(static_cast<unsigned char>(peek()))) {
-            while (cursor_ < text_.size() && std::isdigit(static_cast<unsigned char>(peek()))) {
-                advance();
-            }
-        } else {
-            error("Invalid number literal");
-        }
-
-        if (consume('.')) {
-            if (cursor_ >= text_.size() || !std::isdigit(static_cast<unsigned char>(peek()))) {
-                error("Expected digit after decimal point");
-            }
-            while (cursor_ < text_.size() && std::isdigit(static_cast<unsigned char>(peek()))) {
-                advance();
-            }
-        }
-
-        if (peek() == 'e' || peek() == 'E') {
-            advance();
-            if (peek() == '+' || peek() == '-') {
-                advance();
-            }
-            if (cursor_ >= text_.size() || !std::isdigit(static_cast<unsigned char>(peek()))) {
-                error("Expected digit after exponent marker");
-            }
-            while (cursor_ < text_.size() && std::isdigit(static_cast<unsigned char>(peek()))) {
-                advance();
-            }
-        }
-
-        const std::string number{text_.substr(start, cursor_ - start)};
-        char* end_ptr = nullptr;
-        const double value = std::strtod(number.c_str(), &end_ptr);
-        if (end_ptr == number.c_str()) {
-            error("Failed to convert number literal");
-        }
-        return JsonValue(value);
-    }
-
-    JsonValue parseTrue() {
-        expectSequence("true");
-        return JsonValue(true);
-    }
-
-    JsonValue parseFalse() {
-        expectSequence("false");
-        return JsonValue(false);
-    }
-
-    JsonValue parseNull() {
-        expectSequence("null");
-        return JsonValue(nullptr);
-    }
-
-    std::string parseString() {
-        expect('"');
-        std::string result;
-        while (cursor_ < text_.size()) {
-            char ch = advance();
-            if (ch == '"') {
-                break;
-            }
-            if (ch == '\\') {
-                if (cursor_ >= text_.size()) {
-                    error("Unterminated escape sequence inside string");
-                }
-                char esc = advance();
-                switch (esc) {
-                    case '"': result.push_back('"'); break;
-                    case '\\': result.push_back('\\'); break;
-                    case '/': result.push_back('/'); break;
-                    case 'b': result.push_back('\b'); break;
-                    case 'f': result.push_back('\f'); break;
-                    case 'n': result.push_back('\n'); break;
-                    case 'r': result.push_back('\r'); break;
-                    case 't': result.push_back('\t'); break;
-                    case 'u': {
-                        const char32_t codepoint = parseUnicodeEscape();
-                        appendUtf8(result, codepoint);
-                        break;
-                    }
-                    default:
-                        error("Unknown escape character inside string");
-                }
-            } else {
-                result.push_back(ch);
-            }
-        }
-        return result;
-    }
-
-    char32_t parseUnicodeEscape() {
-        if (cursor_ + 4 > text_.size()) {
-            error("Incomplete unicode escape sequence");
-        }
-        char32_t value = 0;
-        for (int i = 0; i < 4; ++i) {
-            char ch = advance();
-            value <<= 4;
-            if (ch >= '0' && ch <= '9') {
-                value += static_cast<char32_t>(ch - '0');
-            } else if (ch >= 'a' && ch <= 'f') {
-                value += static_cast<char32_t>(10 + (ch - 'a'));
-            } else if (ch >= 'A' && ch <= 'F') {
-                value += static_cast<char32_t>(10 + (ch - 'A'));
-            } else {
-                error("Invalid hex digit in unicode escape");
-            }
-        }
-
-        if (value >= 0xD800 && value <= 0xDBFF) {
-            if (cursor_ + 2 > text_.size() || text_[cursor_] != '\\' || text_[cursor_ + 1] != 'u') {
-                error("Expected low surrogate after high surrogate");
-            }
-            cursor_ += 2;
-            char32_t low = parseUnicodeEscape();
-            if (low < 0xDC00 || low > 0xDFFF) {
-                error("Invalid low surrogate following high surrogate");
-            }
-            value = 0x10000 + ((value - 0xD800) << 10) + (low - 0xDC00);
-        }
-        return value;
-    }
-
-    void appendUtf8(std::string& out, char32_t codepoint) {
-        if (codepoint <= 0x7F) {
-            out.push_back(static_cast<char>(codepoint));
-        } else if (codepoint <= 0x7FF) {
-            out.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
-            out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-        } else if (codepoint <= 0xFFFF) {
-            out.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
-            out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-            out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-        } else {
-            out.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
-            out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
-            out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-            out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-        }
-    }
-
-    void skipWhitespace() {
-        while (cursor_ < text_.size() && std::isspace(static_cast<unsigned char>(text_[cursor_]))) {
-            ++cursor_;
-        }
-    }
-
-    void expect(char expected) {
-        if (cursor_ >= text_.size() || text_[cursor_] != expected) {
-            std::ostringstream oss;
-            oss << "Expected '" << expected << "' while parsing JSON";
-            error(oss.str());
-        }
-        ++cursor_;
-    }
-
-    bool consume(char expected) {
-        if (cursor_ < text_.size() && text_[cursor_] == expected) {
-            ++cursor_;
-            return true;
-        }
-        return false;
-    }
-
-    void expectSequence(const char* literal) {
-        while (*literal) {
-            expect(*literal++);
-        }
-    }
-
-    char peek() const {
-        if (cursor_ >= text_.size()) {
-            return '\0';
-        }
-        return text_[cursor_];
-    }
-
-    char advance() {
-        if (cursor_ >= text_.size()) {
-            error("Unexpected end of input while reading JSON");
-        }
-        return text_[cursor_++];
-    }
-
-    [[noreturn]] void error(const std::string& message) const {
-        std::ostringstream oss;
-        oss << "JSON parse error near position " << cursor_ << ": " << message;
-        throw std::runtime_error(oss.str());
-    }
-
-    std::string_view text_;
-    std::size_t cursor_ = 0;
-};
 
 struct Article {
     std::string name;
@@ -684,403 +365,9 @@ private:
     double credit_ = 0.0;
     std::vector<double> creditHistory_;
 };
-inline std::string trim(const std::string& value) {
-    const auto begin = value.find_first_not_of(" \t\r\n");
-    if (begin == std::string::npos) {
-        return {};
-    }
-    const auto end = value.find_last_not_of(" \t\r\n");
-    return value.substr(begin, end - begin + 1);
-}
 
-inline std::string toLower(std::string text) {
-    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return text;
-}
 
-inline std::string formatCurrency(double amount) {
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2) << amount << " CHF";
-    return oss.str();
-}
 
-inline std::optional<double> parseAmount(const std::string& text) {
-    std::string cleaned = trim(text);
-    cleaned.erase(
-        std::remove_if(cleaned.begin(), cleaned.end(), [](unsigned char ch) { return std::isspace(ch); }),
-        cleaned.end());
-    std::replace(cleaned.begin(), cleaned.end(), ',', '.');
-    if (cleaned.empty()) {
-        return std::nullopt;
-    }
-    try {
-        size_t consumed = 0;
-        const double value = std::stod(cleaned, &consumed);
-        if (consumed == cleaned.size()) {
-            return value;
-        }
-    } catch (const std::exception&) {
-        return std::nullopt;
-    }
-    return std::nullopt;
-}
-
-inline std::wstring toWide(const std::string& value) {
-    if (value.empty()) {
-        return std::wstring();
-    }
-    int required = MultiByteToWideChar(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0);
-    std::wstring result(static_cast<std::size_t>(required), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), result.data(), required);
-    return result;
-}
-
-inline std::string toNarrow(const std::wstring& value) {
-    if (value.empty()) {
-        return std::string();
-    }
-    int required = WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
-    std::string result(static_cast<std::size_t>(required), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), result.data(), required, nullptr, nullptr);
-    return result;
-}
-
-struct StyleSheet {
-    struct Palette {
-        COLORREF background = RGB(10, 13, 23);
-        COLORREF backgroundGlow = RGB(18, 24, 40);
-        COLORREF panelBase = RGB(22, 29, 45);
-        COLORREF panelElevated = RGB(27, 35, 55);
-        COLORREF panelBorder = RGB(41, 52, 79);
-        COLORREF accent = RGB(130, 110, 255);
-        COLORREF accentStrong = RGB(108, 88, 255);
-        COLORREF accentSoft = RGB(176, 190, 255);
-        COLORREF textPrimary = RGB(244, 247, 255);
-        COLORREF textSecondary = RGB(140, 151, 183);
-        COLORREF success = RGB(90, 214, 165);
-        COLORREF danger = RGB(244, 128, 144);
-        COLORREF tileBase = RGB(35, 44, 67);
-        COLORREF tileRaised = RGB(42, 52, 78);
-        COLORREF quickBase = RGB(37, 45, 69);
-        COLORREF quickPressed = RGB(30, 37, 57);
-        COLORREF actionBase = RGB(39, 48, 72);
-    } palette;
-
-    struct Metrics {
-        int margin = 26;
-        int infoHeight = 60;
-        int summaryHeight = 52;
-        int gap = 20;
-        int leftColumnWidth = 280;
-        int rightColumnWidth = 340;
-        int categoryHeight = 86;
-        int categorySpacing = 14;
-        int productTileHeight = 148;
-        int tileGap = 18;
-        int quickButtonHeight = 58;
-        int quickColumns = 3;
-        int actionButtonHeight = 66;
-        int panelRadius = 30;
-        int buttonRadius = 22;
-    } metrics;
-
-    struct FontSpec {
-        int sizePt = 24;
-        int weight = FW_NORMAL;
-    };
-
-    struct Typography {
-        FontSpec heading{30, FW_SEMIBOLD};
-        FontSpec tile{26, FW_BOLD};
-        FontSpec button{22, FW_SEMIBOLD};
-        FontSpec body{18, FW_NORMAL};
-    } typography;
-
-    struct HeroCopy {
-        std::wstring title = L"Cash-Sloth Aurora Touch";
-        std::wstring subtitle = L"Smooth POS Experience inspired by V25.10 Python";
-        std::wstring badge = L"Build 25.11.10";
-    } hero;
-
-    std::vector<double> quickAmounts{0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0};
-    double glassStrength = 0.18;
-    double accentGlow = 0.24;
-    std::wstring fontFamily = L"Segoe UI";
-
-    static StyleSheet load(const std::filesystem::path& baseDir);
-
-private:
-    static std::optional<COLORREF> parseColorValue(const JsonValue& value);
-    static std::optional<COLORREF> parseHexColor(const std::string& text);
-    static int parseFontWeightToken(const std::string& token);
-    static FontSpec parseFontSpec(const JsonValue& node, FontSpec fallback);
-};
-
-inline COLORREF mixColor(COLORREF start, COLORREF target, double factor) {
-    factor = std::clamp(factor, 0.0, 1.0);
-    auto blendChannel = [&](int a, int b) -> int {
-        double value = static_cast<double>(a) + (static_cast<double>(b) - static_cast<double>(a)) * factor;
-        return static_cast<int>(std::clamp(std::round(value), 0.0, 255.0));
-    };
-    return RGB(
-        blendChannel(GetRValue(start), GetRValue(target)),
-        blendChannel(GetGValue(start), GetGValue(target)),
-        blendChannel(GetBValue(start), GetBValue(target)));
-}
-
-inline COLORREF lighten(COLORREF color, double factor) {
-    return mixColor(color, RGB(255, 255, 255), factor);
-}
-
-inline COLORREF darken(COLORREF color, double factor) {
-    return mixColor(color, RGB(0, 0, 0), factor);
-}
-
-inline TRIVERTEX makeVertex(LONG x, LONG y, COLORREF color) {
-    TRIVERTEX vertex{};
-    vertex.x = x;
-    vertex.y = y;
-    vertex.Red = static_cast<COLOR16>(GetRValue(color) << 8);
-    vertex.Green = static_cast<COLOR16>(GetGValue(color) << 8);
-    vertex.Blue = static_cast<COLOR16>(GetBValue(color) << 8);
-    vertex.Alpha = 0;
-    return vertex;
-}
-
-StyleSheet StyleSheet::load(const std::filesystem::path& baseDir) {
-    StyleSheet sheet;
-    const auto stylePath = baseDir / "cash_sloth_styles_v25.11.json";
-    std::ifstream input(stylePath);
-    if (!input.is_open()) {
-        return sheet;
-    }
-    const std::string payload{
-        std::istreambuf_iterator<char>(input),
-        std::istreambuf_iterator<char>()
-    };
-    try {
-        JsonParser parser(payload);
-        const JsonValue root = parser.parse();
-        if (!root.isObject()) {
-            return sheet;
-        }
-        const auto& object = root.asObject();
-
-        const auto paletteIt = object.find("palette");
-        if (paletteIt != object.end() && paletteIt->second.isObject()) {
-            const auto& paletteObj = paletteIt->second.asObject();
-            auto colorOr = [&](const char* key, COLORREF fallback) {
-                const auto it = paletteObj.find(key);
-                if (it == paletteObj.end()) {
-                    return fallback;
-                }
-                const auto parsed = parseColorValue(it->second);
-                return parsed.value_or(fallback);
-            };
-            sheet.palette.background = colorOr("background", sheet.palette.background);
-            sheet.palette.backgroundGlow = colorOr("background_glow", sheet.palette.backgroundGlow);
-            sheet.palette.panelBase = colorOr("panel_base", sheet.palette.panelBase);
-            sheet.palette.panelElevated = colorOr("panel_elevated", sheet.palette.panelElevated);
-            sheet.palette.panelBorder = colorOr("panel_border", sheet.palette.panelBorder);
-            sheet.palette.accent = colorOr("accent", sheet.palette.accent);
-            sheet.palette.accentStrong = colorOr("accent_strong", sheet.palette.accentStrong);
-            sheet.palette.accentSoft = colorOr("accent_soft", sheet.palette.accentSoft);
-            sheet.palette.textPrimary = colorOr("text_primary", sheet.palette.textPrimary);
-            sheet.palette.textSecondary = colorOr("text_secondary", sheet.palette.textSecondary);
-            sheet.palette.success = colorOr("success", sheet.palette.success);
-            sheet.palette.danger = colorOr("danger", sheet.palette.danger);
-            sheet.palette.tileBase = colorOr("tile_base", sheet.palette.tileBase);
-            sheet.palette.tileRaised = colorOr("tile_raised", sheet.palette.tileRaised);
-            sheet.palette.quickBase = colorOr("quick_base", sheet.palette.quickBase);
-            sheet.palette.quickPressed = colorOr("quick_pressed", sheet.palette.quickPressed);
-            sheet.palette.actionBase = colorOr("action_base", sheet.palette.actionBase);
-        }
-
-        const auto metricsIt = object.find("metrics");
-        if (metricsIt != object.end() && metricsIt->second.isObject()) {
-            const auto& metricsObj = metricsIt->second.asObject();
-            auto intOr = [&](const char* key, int fallback) {
-                const auto it = metricsObj.find(key);
-                if (it == metricsObj.end() || !it->second.isNumber()) {
-                    return fallback;
-                }
-                return static_cast<int>(std::round(it->second.asNumber()));
-            };
-            sheet.metrics.margin = intOr("margin", sheet.metrics.margin);
-            sheet.metrics.infoHeight = intOr("info_height", sheet.metrics.infoHeight);
-            sheet.metrics.summaryHeight = intOr("summary_height", sheet.metrics.summaryHeight);
-            sheet.metrics.gap = intOr("gap", sheet.metrics.gap);
-            sheet.metrics.leftColumnWidth = intOr("left_column_width", sheet.metrics.leftColumnWidth);
-            sheet.metrics.rightColumnWidth = intOr("right_column_width", sheet.metrics.rightColumnWidth);
-            sheet.metrics.categoryHeight = intOr("category_height", sheet.metrics.categoryHeight);
-            sheet.metrics.categorySpacing = intOr("category_spacing", sheet.metrics.categorySpacing);
-            sheet.metrics.productTileHeight = intOr("product_tile_height", sheet.metrics.productTileHeight);
-            sheet.metrics.tileGap = intOr("tile_gap", sheet.metrics.tileGap);
-            sheet.metrics.quickButtonHeight = intOr("quick_button_height", sheet.metrics.quickButtonHeight);
-            sheet.metrics.quickColumns = std::max(1, intOr("quick_columns", sheet.metrics.quickColumns));
-            sheet.metrics.actionButtonHeight = intOr("action_button_height", sheet.metrics.actionButtonHeight);
-            sheet.metrics.panelRadius = intOr("panel_radius", sheet.metrics.panelRadius);
-            sheet.metrics.buttonRadius = intOr("button_radius", sheet.metrics.buttonRadius);
-        }
-
-        const auto typographyIt = object.find("typography");
-        if (typographyIt != object.end() && typographyIt->second.isObject()) {
-            const auto& typoObj = typographyIt->second.asObject();
-            auto fontIt = typoObj.find("heading");
-            if (fontIt != typoObj.end()) {
-                sheet.typography.heading = parseFontSpec(fontIt->second, sheet.typography.heading);
-            }
-            fontIt = typoObj.find("tile");
-            if (fontIt != typoObj.end()) {
-                sheet.typography.tile = parseFontSpec(fontIt->second, sheet.typography.tile);
-            }
-            fontIt = typoObj.find("button");
-            if (fontIt != typoObj.end()) {
-                sheet.typography.button = parseFontSpec(fontIt->second, sheet.typography.button);
-            }
-            fontIt = typoObj.find("body");
-            if (fontIt != typoObj.end()) {
-                sheet.typography.body = parseFontSpec(fontIt->second, sheet.typography.body);
-            }
-            const auto familyIt = typoObj.find("font_family");
-            if (familyIt != typoObj.end() && familyIt->second.isString()) {
-                sheet.fontFamily = toWide(familyIt->second.asString());
-            }
-        }
-
-        const auto quickIt = object.find("quick_amounts");
-        if (quickIt != object.end() && quickIt->second.isArray()) {
-            std::vector<double> amounts;
-            for (const JsonValue& entry : quickIt->second.asArray()) {
-                if (entry.isNumber()) {
-                    const double value = entry.asNumber();
-                    if (value > 0.0) {
-                        amounts.push_back(value);
-                    }
-                }
-            }
-            if (!amounts.empty()) {
-                sheet.quickAmounts = std::move(amounts);
-            }
-        }
-
-        const auto heroIt = object.find("hero");
-        if (heroIt != object.end() && heroIt->second.isObject()) {
-            const auto& heroObj = heroIt->second.asObject();
-            const auto titleIt = heroObj.find("title");
-            if (titleIt != heroObj.end() && titleIt->second.isString()) {
-                sheet.hero.title = toWide(titleIt->second.asString());
-            }
-            const auto subtitleIt = heroObj.find("subtitle");
-            if (subtitleIt != heroObj.end() && subtitleIt->second.isString()) {
-                sheet.hero.subtitle = toWide(subtitleIt->second.asString());
-            }
-            const auto badgeIt = heroObj.find("badge");
-            if (badgeIt != heroObj.end() && badgeIt->second.isString()) {
-                sheet.hero.badge = toWide(badgeIt->second.asString());
-            }
-        }
-
-        const auto glassIt = object.find("glass_strength");
-        if (glassIt != object.end() && glassIt->second.isNumber()) {
-            sheet.glassStrength = std::clamp(glassIt->second.asNumber(), 0.05, 0.5);
-        }
-        const auto glowIt = object.find("accent_glow");
-        if (glowIt != object.end() && glowIt->second.isNumber()) {
-            sheet.accentGlow = std::clamp(glowIt->second.asNumber(), 0.05, 0.6);
-        }
-    } catch (const std::exception& exc) {
-        std::cerr << "Warnung: Stylesheet konnte nicht geladen werden: " << exc.what() << '\n';
-    }
-    return sheet;
-}
-
-std::optional<COLORREF> StyleSheet::parseColorValue(const JsonValue& value) {
-    if (value.isString()) {
-        return parseHexColor(value.asString());
-    }
-    if (value.isArray()) {
-        const auto& arr = value.asArray();
-        if (arr.size() >= 3 && arr[0].isNumber() && arr[1].isNumber() && arr[2].isNumber()) {
-            auto clampChannel = [](double v) -> int {
-                return static_cast<int>(std::clamp(std::round(v), 0.0, 255.0));
-            };
-            return RGB(
-                clampChannel(arr[0].asNumber()),
-                clampChannel(arr[1].asNumber()),
-                clampChannel(arr[2].asNumber()));
-        }
-    }
-    return std::nullopt;
-}
-
-std::optional<COLORREF> StyleSheet::parseHexColor(const std::string& text) {
-    std::string raw = trim(text);
-    if (!raw.empty() && raw.front() == '#') {
-        raw.erase(raw.begin());
-    }
-    if (raw.size() != 6 && raw.size() != 8) {
-        return std::nullopt;
-    }
-    try {
-        unsigned long value = std::stoul(raw, nullptr, 16);
-        if (raw.size() == 8) {
-            value &= 0x00FFFFFF;
-        }
-        const int r = static_cast<int>((value >> 16) & 0xFF);
-        const int g = static_cast<int>((value >> 8) & 0xFF);
-        const int b = static_cast<int>(value & 0xFF);
-        return RGB(r, g, b);
-    } catch (const std::exception&) {
-        return std::nullopt;
-    }
-}
-
-int StyleSheet::parseFontWeightToken(const std::string& token) {
-    const std::string lower = toLower(trim(token));
-    if (lower == "thin") {
-        return FW_THIN;
-    }
-    if (lower == "light") {
-        return FW_LIGHT;
-    }
-    if (lower == "medium") {
-        return FW_MEDIUM;
-    }
-    if (lower == "semibold" || lower == "demibold") {
-        return FW_SEMIBOLD;
-    }
-    if (lower == "bold") {
-        return FW_BOLD;
-    }
-    if (lower == "heavy" || lower == "black") {
-        return FW_HEAVY;
-    }
-    return FW_NORMAL;
-}
-
-StyleSheet::FontSpec StyleSheet::parseFontSpec(const JsonValue& node, FontSpec fallback) {
-    FontSpec spec = fallback;
-    if (!node.isObject()) {
-        return spec;
-    }
-    const auto& obj = node.asObject();
-    const auto sizeIt = obj.find("size");
-    if (sizeIt != obj.end() && sizeIt->second.isNumber()) {
-        spec.sizePt = static_cast<int>(std::round(sizeIt->second.asNumber()));
-    }
-    const auto weightIt = obj.find("weight");
-    if (weightIt != obj.end()) {
-        if (weightIt->second.isString()) {
-            spec.weight = parseFontWeightToken(weightIt->second.asString());
-        } else if (weightIt->second.isNumber()) {
-            spec.weight = static_cast<int>(std::round(weightIt->second.asNumber()));
-        }
-    }
-    return spec;
-}
 
 }  // namespace cashsloth
 
@@ -1116,6 +403,7 @@ public:
 
 private:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
+    static constexpr UINT_PTR kAnimationTimerId = 1;
 
     void onCreate();
     void onDestroy();
@@ -1124,6 +412,8 @@ private:
     HBRUSH onCtlColorStatic(HDC dc, HWND hwnd);
     HBRUSH onCtlColorPanel(HDC dc);
     void onPaint();
+    void onTimer(UINT_PTR timerId);
+    void onSize();
 
     void initDpiAndResources();
     void releaseGdiResources();
@@ -1145,6 +435,11 @@ private:
     void onRemoveCartItem();
     void onPay();
 
+    bool initializeFullUi(std::wstring& failureReason);
+    void destroyAllChildWindows();
+    void enterMinimalMode(const std::wstring& reason);
+    void layoutMinimalMode();
+
     void drawCategoryButton(LPDRAWITEMSTRUCT dis);
     void drawProductButton(LPDRAWITEMSTRUCT dis);
     void drawQuickAmountButton(LPDRAWITEMSTRUCT dis);
@@ -1158,6 +453,7 @@ private:
     HFONT createFont(const StyleSheet::FontSpec& spec) const;
     void ensureSectionTitle(HWND& handle, const std::wstring& text, int x, int y, int width);
     int scale(int value) const;
+    void updateAnimation();
 
     HINSTANCE instance_;
     HWND window_ = nullptr;
@@ -1210,13 +506,22 @@ private:
     std::vector<HWND> quickAmountButtons_;
 
     std::vector<double> quickAmounts_;
+    std::vector<std::wstring> cartDisplayLines_;
 
     std::wstring infoText_;
+    bool minimalMode_ = false;
+    HWND minimalMessageLabel_ = nullptr;
+    std::wstring minimalMessage_;
 
     UINT dpiX_ = 96;
     UINT dpiY_ = 96;
 
     int selectedCategoryIndex_ = 0;
+
+    double accentPulse_ = 0.5;
+    double animationTime_ = 0.0;
+    ULONGLONG lastAnimationTick_ = 0;
+    bool animationTimerActive_ = false;
 };
 CashSlothGUI::CashSlothGUI(HINSTANCE instance)
     : instance_(instance) {
@@ -1247,7 +552,12 @@ int CashSlothGUI::run(int nCmdShow) {
     wc.lpszClassName = className;
 
     if (!RegisterClassExW(&wc)) {
-        return 0;
+        const DWORD error = GetLastError();
+        std::wstringstream stream;
+        stream << L"Fensterklasse konnte nicht registriert werden.\nFehler " << error << L":\n"
+               << formatWindowsErrorMessage(error);
+        MessageBoxW(nullptr, stream.str().c_str(), kWindowTitle, MB_ICONERROR | MB_OK);
+        return EXIT_FAILURE;
     }
 
     const int windowWidth = 1280;
@@ -1268,18 +578,35 @@ int CashSlothGUI::run(int nCmdShow) {
         this);
 
     if (!window) {
-        return 0;
+        const DWORD error = GetLastError();
+        std::wstringstream stream;
+        stream << L"Fenster konnte nicht erstellt werden.\nFehler " << error << L":\n"
+               << formatWindowsErrorMessage(error);
+        MessageBoxW(nullptr, stream.str().c_str(), kWindowTitle, MB_ICONERROR | MB_OK);
+        return EXIT_FAILURE;
     }
 
     ShowWindow(window, nCmdShow);
     UpdateWindow(window);
 
     MSG msg{};
-    while (GetMessageW(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+    int exitCode = EXIT_SUCCESS;
+    while (true) {
+        const BOOL result = GetMessageW(&msg, nullptr, 0, 0);
+        if (result > 0) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+            continue;
+        }
+
+        if (result == 0) {
+            exitCode = static_cast<int>(msg.wParam);
+        } else {
+            exitCode = EXIT_FAILURE;
+        }
+        break;
     }
-    return static_cast<int>(msg.wParam);
+    return exitCode;
 }
 
 LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -1317,6 +644,12 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
         case WM_PAINT:
             self->onPaint();
             return 0;
+        case WM_TIMER:
+            self->onTimer(static_cast<UINT_PTR>(wParam));
+            return 0;
+        case WM_SIZE:
+            self->onSize();
+            return 0;
         case WM_DESTROY:
             self->onDestroy();
             return 0;
@@ -1325,26 +658,25 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
     }
 }
 void CashSlothGUI::onCreate() {
-    initDpiAndResources();
-    calculateLayout();
-    createInfoAndSummary();
-    createCartArea();
-    createCreditPanel();
-    createActionButtons();
-    loadCatalogue();
-    buildCategoryButtons();
-    rebuildProductButtons();
-    refreshCart();
-    refreshStatus();
-    showInfo(infoText_);
+    std::wstring failureReason;
+    if (!initializeFullUi(failureReason)) {
+        enterMinimalMode(failureReason);
+    }
 }
 
 void CashSlothGUI::onDestroy() {
+    if (animationTimerActive_) {
+        KillTimer(window_, kAnimationTimerId);
+        animationTimerActive_ = false;
+    }
     releaseGdiResources();
     PostQuitMessage(0);
 }
 
 void CashSlothGUI::onCommand(int controlId, int notificationCode) {
+    if (minimalMode_) {
+        return;
+    }
     if (controlId >= ID_CATEGORY_BASE && controlId < ID_CATEGORY_BASE + static_cast<int>(categoryButtons_.size())) {
         if (notificationCode == BN_CLICKED) {
             selectedCategoryIndex_ = controlId - ID_CATEGORY_BASE;
@@ -1415,6 +747,9 @@ void CashSlothGUI::onCommand(int controlId, int notificationCode) {
 }
 
 void CashSlothGUI::onDrawItem(LPDRAWITEMSTRUCT dis) {
+    if (minimalMode_) {
+        return;
+    }
     if (dis->CtlType != ODT_BUTTON) {
         return;
     }
@@ -1432,6 +767,11 @@ void CashSlothGUI::onDrawItem(LPDRAWITEMSTRUCT dis) {
 }
 
 HBRUSH CashSlothGUI::onCtlColorStatic(HDC dc, HWND hwnd) {
+    if (minimalMode_) {
+        SetBkMode(dc, TRANSPARENT);
+        SetTextColor(dc, GetSysColor(COLOR_WINDOWTEXT));
+        return GetSysColorBrush(COLOR_WINDOW);
+    }
     SetBkMode(dc, TRANSPARENT);
     if (hwnd == summaryLabel_) {
         SetTextColor(dc, style_.palette.accentSoft);
@@ -1446,6 +786,11 @@ HBRUSH CashSlothGUI::onCtlColorStatic(HDC dc, HWND hwnd) {
 }
 
 HBRUSH CashSlothGUI::onCtlColorPanel(HDC dc) {
+    if (minimalMode_) {
+        SetBkColor(dc, GetSysColor(COLOR_WINDOW));
+        SetTextColor(dc, GetSysColor(COLOR_WINDOWTEXT));
+        return GetSysColorBrush(COLOR_WINDOW);
+    }
     SetBkColor(dc, style_.palette.panelBase);
     SetTextColor(dc, style_.palette.textPrimary);
     return panelBrush_;
@@ -1455,6 +800,12 @@ void CashSlothGUI::onPaint() {
     PAINTSTRUCT ps;
     HDC dc = BeginPaint(window_, &ps);
 
+    if (minimalMode_) {
+        FillRect(dc, &ps.rcPaint, GetSysColorBrush(COLOR_WINDOW));
+        EndPaint(window_, &ps);
+        return;
+    }
+
     drawBackdrop(dc);
 
     drawPanel(dc, categoryPanelRect());
@@ -1462,6 +813,202 @@ void CashSlothGUI::onPaint() {
     drawPanel(dc, cartPanelRect());
 
     EndPaint(window_, &ps);
+}
+
+void CashSlothGUI::onTimer(UINT_PTR timerId) {
+    if (minimalMode_) {
+        return;
+    }
+    if (timerId == kAnimationTimerId) {
+        updateAnimation();
+    }
+}
+
+void CashSlothGUI::onSize() {
+    if (minimalMode_) {
+        layoutMinimalMode();
+    }
+}
+
+bool CashSlothGUI::initializeFullUi(std::wstring& failureReason) {
+    minimalMode_ = false;
+    failureReason.clear();
+
+    if (minimalMessageLabel_) {
+        DestroyWindow(minimalMessageLabel_);
+        minimalMessageLabel_ = nullptr;
+    }
+
+    initDpiAndResources();
+
+    if (!headingFont_ || !tileFont_ || !buttonFont_ || !smallFont_) {
+        failureReason = L"Schriftarten konnten nicht erstellt werden.";
+        return false;
+    }
+    if (!backgroundBrush_ || !panelBrush_ || !panelBorderPen_) {
+        failureReason = L"GDI-Ressourcen konnten nicht erstellt werden.";
+        return false;
+    }
+
+    calculateLayout();
+    createInfoAndSummary();
+    if (!heroTitleLabel_ || !heroSubtitleLabel_ || !heroBadgeLabel_ || !infoLabel_ || !summaryLabel_) {
+        failureReason = L"Kopfbereich konnte nicht aufgebaut werden.";
+        return false;
+    }
+
+    createCartArea();
+    if (!cartList_) {
+        failureReason = L"Warenkorbliste konnte nicht erstellt werden.";
+        return false;
+    }
+
+    createCreditPanel();
+    if (!manualEntry_ || !addCreditButton_ || !undoCreditButton_) {
+        failureReason = L"Kundengeldbereich konnte nicht erstellt werden.";
+        return false;
+    }
+
+    createActionButtons();
+    if (!removeButton_ || !clearButton_ || !payButton_) {
+        failureReason = L"Aktionstasten konnten nicht erstellt werden.";
+        return false;
+    }
+
+    loadCatalogue();
+    buildCategoryButtons();
+    rebuildProductButtons();
+    refreshCart();
+    refreshStatus();
+    showInfo(infoText_);
+
+    accentPulse_ = 0.5;
+    animationTime_ = 0.0;
+    lastAnimationTick_ = GetTickCount64();
+    animationTimerActive_ = SetTimer(window_, kAnimationTimerId, 16, nullptr) != 0;
+    return true;
+}
+
+void CashSlothGUI::destroyAllChildWindows() {
+    auto destroyHandle = [](HWND& handle) {
+        if (handle) {
+            DestroyWindow(handle);
+            handle = nullptr;
+        }
+    };
+
+    destroyHandle(heroTitleLabel_);
+    destroyHandle(heroSubtitleLabel_);
+    destroyHandle(heroBadgeLabel_);
+    destroyHandle(infoLabel_);
+    destroyHandle(summaryLabel_);
+    destroyHandle(categoryTitle_);
+    destroyHandle(productTitle_);
+    destroyHandle(cartTitle_);
+    destroyHandle(creditTitle_);
+    destroyHandle(quickTitle_);
+    destroyHandle(actionTitle_);
+
+    destroyHandle(cartList_);
+    destroyHandle(manualEntry_);
+    destroyHandle(addCreditButton_);
+    destroyHandle(undoCreditButton_);
+    destroyHandle(removeButton_);
+    destroyHandle(clearButton_);
+    destroyHandle(payButton_);
+
+    for (HWND& button : categoryButtons_) {
+        if (button) {
+            DestroyWindow(button);
+            button = nullptr;
+        }
+    }
+    categoryButtons_.clear();
+
+    for (HWND& button : productButtons_) {
+        if (button) {
+            DestroyWindow(button);
+            button = nullptr;
+        }
+    }
+    productButtons_.clear();
+
+    for (HWND& button : quickAmountButtons_) {
+        if (button) {
+            DestroyWindow(button);
+            button = nullptr;
+        }
+    }
+    quickAmountButtons_.clear();
+
+    destroyHandle(minimalMessageLabel_);
+
+    categoryOrder_.clear();
+    visibleProducts_.clear();
+    cartDisplayLines_.clear();
+}
+
+void CashSlothGUI::enterMinimalMode(const std::wstring& reason) {
+    if (animationTimerActive_) {
+        KillTimer(window_, kAnimationTimerId);
+        animationTimerActive_ = false;
+    }
+
+    destroyAllChildWindows();
+    releaseGdiResources();
+
+    minimalMode_ = true;
+    minimalMessage_ = reason;
+    if (minimalMessage_.empty()) {
+        minimalMessage_ = L"Cash-Sloth konnte die erweiterte Oberfläche nicht initialisieren.\nEs wird ein leeres Fenster angezeigt.";
+    } else {
+        minimalMessage_ = L"Vereinfachter Modus aktiviert:\n" + minimalMessage_;
+    }
+
+    minimalMessageLabel_ = CreateWindowExW(
+        0,
+        L"STATIC",
+        minimalMessage_.c_str(),
+        WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE | SS_NOPREFIX,
+        0,
+        0,
+        0,
+        0,
+        window_,
+        nullptr,
+        instance_,
+        nullptr);
+
+    if (minimalMessageLabel_) {
+        SendMessageW(minimalMessageLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), FALSE);
+        layoutMinimalMode();
+    }
+
+    InvalidateRect(window_, nullptr, TRUE);
+}
+
+void CashSlothGUI::layoutMinimalMode() {
+    if (!minimalMode_ || !minimalMessageLabel_) {
+        return;
+    }
+
+    RECT rect{};
+    GetClientRect(window_, &rect);
+    const int width = rect.right - rect.left;
+    const int height = rect.bottom - rect.top;
+
+    int labelWidth = std::max(200, width - 80);
+    labelWidth = std::min(labelWidth, std::max(1, width - 20));
+    labelWidth = std::max(labelWidth, 1);
+
+    int labelHeight = std::max(80, height / 3);
+    labelHeight = std::min(labelHeight, std::max(1, height - 40));
+    labelHeight = std::max(labelHeight, 1);
+
+    const int x = std::max(0, (width - labelWidth) / 2);
+    const int y = std::max(0, (height - labelHeight) / 2);
+
+    MoveWindow(minimalMessageLabel_, x, y, labelWidth, labelHeight, TRUE);
 }
 void CashSlothGUI::initDpiAndResources() {
     HDC screen = GetDC(window_);
@@ -1902,8 +1449,12 @@ void CashSlothGUI::updateCategoryHighlight() {
 }
 
 void CashSlothGUI::refreshCart() {
+    if (minimalMode_) {
+        return;
+    }
     SendMessageW(cartList_, WM_SETREDRAW, FALSE, 0);
     SendMessageW(cartList_, LB_RESETCONTENT, 0, 0);
+    cartDisplayLines_.clear();
 
     const auto& items = cart_.items();
     std::size_t index = 1;
@@ -1911,15 +1462,23 @@ void CashSlothGUI::refreshCart() {
         std::wstringstream ws;
         ws << index << L". " << toWide(item.article->name) << L"  x" << item.quantity
            << L"  " << toWide(formatCurrency(item.article->price * static_cast<double>(item.quantity)));
-        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(ws.str().c_str()));
+        cartDisplayLines_.push_back(ws.str());
+        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(cartDisplayLines_.back().c_str()));
         ++index;
     }
     SendMessageW(cartList_, WM_SETREDRAW, TRUE, 0);
     InvalidateRect(cartList_, nullptr, TRUE);
     refreshStatus();
+
+    if (undoCreditButton_) {
+        EnableWindow(undoCreditButton_, cart_.hasCreditHistory() ? TRUE : FALSE);
+    }
 }
 
 void CashSlothGUI::refreshStatus() {
+    if (minimalMode_) {
+        return;
+    }
     std::wstring summary = L"Summe: " + toWide(formatCurrency(cart_.total()));
     summary += L"    Kundengeld: " + toWide(formatCurrency(cart_.credit()));
     summary += L"    Rückgeld: " + toWide(formatCurrency(cart_.change()));
@@ -1929,10 +1488,19 @@ void CashSlothGUI::refreshStatus() {
 
 void CashSlothGUI::showInfo(const std::wstring& text) {
     infoText_ = text;
+    if (minimalMode_) {
+        if (minimalMessageLabel_) {
+            SetWindowTextW(minimalMessageLabel_, minimalMessage_.c_str());
+        }
+        return;
+    }
     SetWindowTextW(infoLabel_, text.c_str());
 }
 
 void CashSlothGUI::addCredit(double amount) {
+    if (minimalMode_) {
+        return;
+    }
     cart_.addCredit(amount);
     refreshCart();
     std::wstring message = L"Kundengeld +" + toWide(formatCurrency(amount));
@@ -1940,6 +1508,9 @@ void CashSlothGUI::addCredit(double amount) {
 }
 
 void CashSlothGUI::onAddCredit() {
+    if (minimalMode_) {
+        return;
+    }
     wchar_t buffer[64]{};
     GetWindowTextW(manualEntry_, buffer, static_cast<int>(std::size(buffer)));
     std::string text = toNarrow(buffer);
@@ -1955,6 +1526,9 @@ void CashSlothGUI::onAddCredit() {
 }
 
 void CashSlothGUI::onUndoCredit() {
+    if (minimalMode_) {
+        return;
+    }
     const auto undone = cart_.undoCredit();
     if (!undone.has_value()) {
         MessageBoxW(window_, L"Keine Kundengeldbuchung vorhanden.", L"Hinweis", MB_ICONINFORMATION | MB_OK);
@@ -1966,6 +1540,9 @@ void CashSlothGUI::onUndoCredit() {
 }
 
 void CashSlothGUI::onRemoveCartItem() {
+    if (minimalMode_) {
+        return;
+    }
     const int selection = static_cast<int>(SendMessageW(cartList_, LB_GETCURSEL, 0, 0));
     if (selection == LB_ERR) {
         MessageBoxW(window_, L"Bitte eine Position im Warenkorb auswählen.", L"Hinweis", MB_ICONINFORMATION | MB_OK);
@@ -1977,6 +1554,9 @@ void CashSlothGUI::onRemoveCartItem() {
 }
 
 void CashSlothGUI::onPay() {
+    if (minimalMode_) {
+        return;
+    }
     if (cart_.empty()) {
         MessageBoxW(window_, L"Der Warenkorb ist leer.", L"Hinweis", MB_ICONINFORMATION | MB_OK);
         return;
@@ -2140,6 +1720,38 @@ void CashSlothGUI::drawPanel(HDC dc, const RECT& area) const {
     SelectObject(dc, oldBrush);
 }
 
+void CashSlothGUI::updateAnimation() {
+    if (!window_ || minimalMode_) {
+        return;
+    }
+
+    const ULONGLONG now = GetTickCount64();
+    if (lastAnimationTick_ == 0) {
+        lastAnimationTick_ = now;
+        return;
+    }
+
+    const double deltaSeconds = static_cast<double>(now - lastAnimationTick_) / 1000.0;
+    lastAnimationTick_ = now;
+    animationTime_ += deltaSeconds;
+
+    constexpr double kTwoPi = 6.28318530717958647692;
+    const double pulse = 0.5 + 0.5 * std::sin(animationTime_ * kTwoPi * 0.35);
+    if (std::fabs(pulse - accentPulse_) < 0.001) {
+        return;
+    }
+
+    accentPulse_ = std::clamp(pulse, 0.0, 1.0);
+
+    RECT accentArea{
+        std::max(clientRect_.left, clientRect_.right - scale(560)),
+        clientRect_.top,
+        clientRect_.right,
+        clientRect_.top + scale(360)
+    };
+    InvalidateRect(window_, &accentArea, FALSE);
+}
+
 void CashSlothGUI::drawBackdrop(HDC dc) const {
     FillRect(dc, &clientRect_, backgroundBrush_);
 
@@ -2153,13 +1765,24 @@ void CashSlothGUI::drawBackdrop(HDC dc) const {
     RECT accentRect = clientRect_;
     accentRect.left = clientRect_.right - scale(420);
     accentRect.bottom = clientRect_.top + scale(260);
+    const double easedPulse = accentPulse_ * accentPulse_ * (3.0 - 2.0 * accentPulse_);
+    const int padLeft = scale(140 + static_cast<int>(easedPulse * 60.0));
+    const int padTop = scale(140 + static_cast<int>(easedPulse * 80.0));
+    const int padRight = scale(80 + static_cast<int>(easedPulse * 40.0));
+    const int padBottom = scale(60 + static_cast<int>(easedPulse * 50.0));
     const int state = SaveDC(dc);
-    HRGN clip = CreateEllipticRgn(accentRect.left - scale(160), accentRect.top - scale(160),
-                                  accentRect.right + scale(80), accentRect.bottom + scale(40));
+    HRGN clip = CreateEllipticRgn(
+        accentRect.left - padLeft,
+        accentRect.top - padTop,
+        accentRect.right + padRight,
+        accentRect.bottom + padBottom);
     SelectClipRgn(dc, clip);
+    const double glowStrength = std::clamp(style_.accentGlow + (accentPulse_ - 0.5) * 0.25, 0.05, 0.75);
+    const COLORREF accentCore = mixColor(style_.palette.accentStrong, style_.palette.accentSoft, easedPulse);
+    const COLORREF accentFade = mixColor(accentCore, style_.palette.background, 1.0 - glowStrength);
     TRIVERTEX accentVerts[2] = {
-        makeVertex(accentRect.left, accentRect.top, mixColor(style_.palette.accentStrong, style_.palette.background, style_.accentGlow)),
-        makeVertex(accentRect.right, accentRect.bottom, style_.palette.background),
+        makeVertex(accentRect.left, accentRect.top, accentCore),
+        makeVertex(accentRect.right, accentRect.bottom, accentFade),
     };
     GradientFill(dc, accentVerts, 2, &rect, 1, GRADIENT_FILL_RECT_H);
     RestoreDC(dc, state);
@@ -2243,6 +1866,20 @@ int CashSlothGUI::scale(int value) const {
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
-    CashSlothGUI app(hInstance);
-    return app.run(nCmdShow);
+    try {
+        CashSlothGUI app(hInstance);
+        return app.run(nCmdShow);
+    } catch (const std::exception& exc) {
+        std::wstring message = L"Unbehandelte Ausnahme:\n" + toWide(std::string(exc.what()));
+        MessageBoxW(nullptr, message.c_str(), kWindowTitle, MB_ICONERROR | MB_OK);
+    } catch (...) {
+        MessageBoxW(nullptr, L"Unbekannter Fehler ist aufgetreten.", kWindowTitle, MB_ICONERROR | MB_OK);
+    }
+    return EXIT_FAILURE;
 }
+
+#if !defined(UNICODE) && !defined(_UNICODE)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
+    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
+}
+#endif
