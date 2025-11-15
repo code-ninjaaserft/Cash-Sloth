@@ -16,19 +16,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cash_sloth_json.h"
-#include "cash_sloth_style.h"
-#include "cash_sloth_utils.h"
-
 #if defined(_MSC_VER)
 #pragma comment(lib, "Msimg32.lib")
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdi32.lib")
 #pragma comment(lib, "UxTheme.lib")
-#else
-// MinGW / GCC builds must link these libraries manually, e.g.:
-//   g++ Cash-Sloth\ V25.11.10\ CPP.cpp cash_sloth_style.cpp cash_sloth_json.cpp -municode -mwindows -lgdi32 -lcomctl32 -luxtheme -lmsimg32
-#endif
 
 namespace cashsloth {
 
@@ -413,7 +405,6 @@ private:
     HBRUSH onCtlColorPanel(HDC dc);
     void onPaint();
     void onTimer(UINT_PTR timerId);
-    void onSize();
 
     void initDpiAndResources();
     void releaseGdiResources();
@@ -647,9 +638,6 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
         case WM_TIMER:
             self->onTimer(static_cast<UINT_PTR>(wParam));
             return 0;
-        case WM_SIZE:
-            self->onSize();
-            return 0;
         case WM_DESTROY:
             self->onDestroy();
             return 0;
@@ -658,10 +646,23 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
     }
 }
 void CashSlothGUI::onCreate() {
-    std::wstring failureReason;
-    if (!initializeFullUi(failureReason)) {
-        enterMinimalMode(failureReason);
-    }
+    initDpiAndResources();
+    calculateLayout();
+    createInfoAndSummary();
+    createCartArea();
+    createCreditPanel();
+    createActionButtons();
+    loadCatalogue();
+    buildCategoryButtons();
+    rebuildProductButtons();
+    refreshCart();
+    refreshStatus();
+    showInfo(infoText_);
+
+    accentPulse_ = 0.5;
+    animationTime_ = 0.0;
+    lastAnimationTick_ = GetTickCount64();
+    animationTimerActive_ = SetTimer(window_, kAnimationTimerId, 16, nullptr) != 0;
 }
 
 void CashSlothGUI::onDestroy() {
@@ -816,199 +817,9 @@ void CashSlothGUI::onPaint() {
 }
 
 void CashSlothGUI::onTimer(UINT_PTR timerId) {
-    if (minimalMode_) {
-        return;
-    }
     if (timerId == kAnimationTimerId) {
         updateAnimation();
     }
-}
-
-void CashSlothGUI::onSize() {
-    if (minimalMode_) {
-        layoutMinimalMode();
-    }
-}
-
-bool CashSlothGUI::initializeFullUi(std::wstring& failureReason) {
-    minimalMode_ = false;
-    failureReason.clear();
-
-    if (minimalMessageLabel_) {
-        DestroyWindow(minimalMessageLabel_);
-        minimalMessageLabel_ = nullptr;
-    }
-
-    initDpiAndResources();
-
-    if (!headingFont_ || !tileFont_ || !buttonFont_ || !smallFont_) {
-        failureReason = L"Schriftarten konnten nicht erstellt werden.";
-        return false;
-    }
-    if (!backgroundBrush_ || !panelBrush_ || !panelBorderPen_) {
-        failureReason = L"GDI-Ressourcen konnten nicht erstellt werden.";
-        return false;
-    }
-
-    calculateLayout();
-    createInfoAndSummary();
-    if (!heroTitleLabel_ || !heroSubtitleLabel_ || !heroBadgeLabel_ || !infoLabel_ || !summaryLabel_) {
-        failureReason = L"Kopfbereich konnte nicht aufgebaut werden.";
-        return false;
-    }
-
-    createCartArea();
-    if (!cartList_) {
-        failureReason = L"Warenkorbliste konnte nicht erstellt werden.";
-        return false;
-    }
-
-    createCreditPanel();
-    if (!manualEntry_ || !addCreditButton_ || !undoCreditButton_) {
-        failureReason = L"Kundengeldbereich konnte nicht erstellt werden.";
-        return false;
-    }
-
-    createActionButtons();
-    if (!removeButton_ || !clearButton_ || !payButton_) {
-        failureReason = L"Aktionstasten konnten nicht erstellt werden.";
-        return false;
-    }
-
-    loadCatalogue();
-    buildCategoryButtons();
-    rebuildProductButtons();
-    refreshCart();
-    refreshStatus();
-    showInfo(infoText_);
-
-    accentPulse_ = 0.5;
-    animationTime_ = 0.0;
-    lastAnimationTick_ = GetTickCount64();
-    animationTimerActive_ = SetTimer(window_, kAnimationTimerId, 16, nullptr) != 0;
-    return true;
-}
-
-void CashSlothGUI::destroyAllChildWindows() {
-    auto destroyHandle = [](HWND& handle) {
-        if (handle) {
-            DestroyWindow(handle);
-            handle = nullptr;
-        }
-    };
-
-    destroyHandle(heroTitleLabel_);
-    destroyHandle(heroSubtitleLabel_);
-    destroyHandle(heroBadgeLabel_);
-    destroyHandle(infoLabel_);
-    destroyHandle(summaryLabel_);
-    destroyHandle(categoryTitle_);
-    destroyHandle(productTitle_);
-    destroyHandle(cartTitle_);
-    destroyHandle(creditTitle_);
-    destroyHandle(quickTitle_);
-    destroyHandle(actionTitle_);
-
-    destroyHandle(cartList_);
-    destroyHandle(manualEntry_);
-    destroyHandle(addCreditButton_);
-    destroyHandle(undoCreditButton_);
-    destroyHandle(removeButton_);
-    destroyHandle(clearButton_);
-    destroyHandle(payButton_);
-
-    for (HWND& button : categoryButtons_) {
-        if (button) {
-            DestroyWindow(button);
-            button = nullptr;
-        }
-    }
-    categoryButtons_.clear();
-
-    for (HWND& button : productButtons_) {
-        if (button) {
-            DestroyWindow(button);
-            button = nullptr;
-        }
-    }
-    productButtons_.clear();
-
-    for (HWND& button : quickAmountButtons_) {
-        if (button) {
-            DestroyWindow(button);
-            button = nullptr;
-        }
-    }
-    quickAmountButtons_.clear();
-
-    destroyHandle(minimalMessageLabel_);
-
-    categoryOrder_.clear();
-    visibleProducts_.clear();
-    cartDisplayLines_.clear();
-}
-
-void CashSlothGUI::enterMinimalMode(const std::wstring& reason) {
-    if (animationTimerActive_) {
-        KillTimer(window_, kAnimationTimerId);
-        animationTimerActive_ = false;
-    }
-
-    destroyAllChildWindows();
-    releaseGdiResources();
-
-    minimalMode_ = true;
-    minimalMessage_ = reason;
-    if (minimalMessage_.empty()) {
-        minimalMessage_ = L"Cash-Sloth konnte die erweiterte Oberfläche nicht initialisieren.\nEs wird ein leeres Fenster angezeigt.";
-    } else {
-        minimalMessage_ = L"Vereinfachter Modus aktiviert:\n" + minimalMessage_;
-    }
-
-    minimalMessageLabel_ = CreateWindowExW(
-        0,
-        L"STATIC",
-        minimalMessage_.c_str(),
-        WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE | SS_NOPREFIX,
-        0,
-        0,
-        0,
-        0,
-        window_,
-        nullptr,
-        instance_,
-        nullptr);
-
-    if (minimalMessageLabel_) {
-        SendMessageW(minimalMessageLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), FALSE);
-        layoutMinimalMode();
-    }
-
-    InvalidateRect(window_, nullptr, TRUE);
-}
-
-void CashSlothGUI::layoutMinimalMode() {
-    if (!minimalMode_ || !minimalMessageLabel_) {
-        return;
-    }
-
-    RECT rect{};
-    GetClientRect(window_, &rect);
-    const int width = rect.right - rect.left;
-    const int height = rect.bottom - rect.top;
-
-    int labelWidth = std::max(200, width - 80);
-    labelWidth = std::min(labelWidth, std::max(1, width - 20));
-    labelWidth = std::max(labelWidth, 1);
-
-    int labelHeight = std::max(80, height / 3);
-    labelHeight = std::min(labelHeight, std::max(1, height - 40));
-    labelHeight = std::max(labelHeight, 1);
-
-    const int x = std::max(0, (width - labelWidth) / 2);
-    const int y = std::max(0, (height - labelHeight) / 2);
-
-    MoveWindow(minimalMessageLabel_, x, y, labelWidth, labelHeight, TRUE);
 }
 void CashSlothGUI::initDpiAndResources() {
     HDC screen = GetDC(window_);
@@ -1462,8 +1273,8 @@ void CashSlothGUI::refreshCart() {
         std::wstringstream ws;
         ws << index << L". " << toWide(item.article->name) << L"  x" << item.quantity
            << L"  " << toWide(formatCurrency(item.article->price * static_cast<double>(item.quantity)));
-        cartDisplayLines_.push_back(ws.str());
-        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(cartDisplayLines_.back().c_str()));
+        const std::wstring line = ws.str();
+        SendMessageW(cartList_, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(line.c_str()));
         ++index;
     }
     SendMessageW(cartList_, WM_SETREDRAW, TRUE, 0);
@@ -1721,7 +1532,7 @@ void CashSlothGUI::drawPanel(HDC dc, const RECT& area) const {
 }
 
 void CashSlothGUI::updateAnimation() {
-    if (!window_ || minimalMode_) {
+    if (!window_) {
         return;
     }
 
@@ -1876,6 +1687,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
         MessageBoxW(nullptr, L"Unbekannter Fehler ist aufgetreten.", kWindowTitle, MB_ICONERROR | MB_OK);
     }
     return EXIT_FAILURE;
+}
+
+#if !defined(UNICODE) && !defined(_UNICODE)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
+    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }
 
 #if !defined(UNICODE) && !defined(_UNICODE)
