@@ -36,6 +36,7 @@ int main() {
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdi32.lib")
 #pragma comment(lib, "UxTheme.lib")
+#endif  // defined(_MSC_VER)
 
 namespace cashsloth {
 
