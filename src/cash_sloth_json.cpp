@@ -7,6 +7,7 @@
 namespace cashsloth {
 
 JsonValue JsonParser::parse() {
+    skipBom();
     skipWhitespace();
     JsonValue value = parseValue();
     skipWhitespace();
@@ -203,14 +204,30 @@ void JsonParser::expect(char expected) {
     }
 }
 
+void JsonParser::skipBom() {
+    if (cursor_ == 0 && text_.size() >= 3) {
+        const unsigned char* bytes = reinterpret_cast<const unsigned char*>(text_.data());
+        if (bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+            cursor_ = 3;
+        }
+    }
+}
+
 void JsonParser::skipWhitespace() {
     while (cursor_ < text_.size()) {
-        const char ch = text_[cursor_];
+        const unsigned char ch = static_cast<unsigned char>(text_[cursor_]);
         if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
             ++cursor_;
-        } else {
-            break;
+            continue;
         }
+        if (ch == 0xEF && cursor_ + 2 < text_.size()) {
+            const unsigned char* bytes = reinterpret_cast<const unsigned char*>(text_.data() + cursor_);
+            if (bytes[1] == 0xBB && bytes[2] == 0xBF) {
+                cursor_ += 3;
+                continue;
+            }
+        }
+        break;
     }
 }
 
