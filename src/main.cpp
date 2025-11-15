@@ -16,6 +16,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cash_sloth_json.h"
+#include "cash_sloth_style.h"
+#include "cash_sloth_utils.h"
+
 #if defined(_MSC_VER)
 #pragma comment(lib, "Msimg32.lib")
 #pragma comment(lib, "Comctl32.lib")
@@ -1132,9 +1136,11 @@ void CashSlothGUI::createActionButtons() {
 
 void CashSlothGUI::loadCatalogue() {
     const std::vector<std::filesystem::path> candidates = {
+        exeDirectory_ / "assets" / "cash_sloth_catalog.json",
+        exeDirectory_ / "assets" / "catalog.json",
+        exeDirectory_ / "cash_sloth_catalog.json",
         exeDirectory_ / "cash_sloth_catalog_v25.11.json",
         exeDirectory_ / "cash_sloth_catalog_v25.10.json",
-        exeDirectory_ / "cash_sloth_catalog.json",
         exeDirectory_ / "konfiguration.json",
         exeDirectory_ / "Configs" / "konfiguration.json",
         exeDirectory_ / "configs" / "konfiguration.json"
@@ -1150,7 +1156,7 @@ void CashSlothGUI::loadCatalogue() {
     }
     if (!loaded) {
         catalogue_.loadDefault();
-        infoText_ = L"Standardkatalog geladen (cash_sloth_catalog_v25.11.json nicht gefunden).";
+        infoText_ = L"Standardkatalog geladen (assets/cash_sloth_catalog.json nicht gefunden).";
     }
 }
 
@@ -1687,11 +1693,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
         MessageBoxW(nullptr, L"Unbekannter Fehler ist aufgetreten.", kWindowTitle, MB_ICONERROR | MB_OK);
     }
     return EXIT_FAILURE;
-}
-
-#if !defined(UNICODE) && !defined(_UNICODE)
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmdShow) {
-    return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }
 
 #if !defined(UNICODE) && !defined(_UNICODE)

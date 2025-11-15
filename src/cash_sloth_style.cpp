@@ -11,8 +11,20 @@ namespace cashsloth {
 
 StyleSheet StyleSheet::load(const std::filesystem::path& baseDir) {
     StyleSheet sheet;
-    const auto stylePath = baseDir / "cash_sloth_styles_v25.11.json";
-    std::ifstream input(stylePath);
+    const std::vector<std::filesystem::path> candidates = {
+        baseDir / "assets" / "style.json",
+        baseDir / "style.json",
+        baseDir / "cash_sloth_styles_v25.11.json"
+    };
+
+    std::ifstream input;
+    for (const auto& candidate : candidates) {
+        input.open(candidate);
+        if (input.is_open()) {
+            break;
+        }
+        input.clear();
+    }
     if (!input.is_open()) {
         return sheet;
     }

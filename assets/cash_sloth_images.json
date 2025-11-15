@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "images": [
+    {
+      "id": "hero-aurora",
+      "path": "assets/images/aurora_placeholder.png",
+      "description": "Placeholder hero background used in splash panels."
+    },
+    {
+      "id": "logo-wordmark",
+      "path": "assets/images/cash_sloth_wordmark.svg",
+      "description": "Vector wordmark rendered in the application header."
+    }
+  ]
+}
