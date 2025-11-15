@@ -8,6 +8,10 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 
 namespace cashsloth {
