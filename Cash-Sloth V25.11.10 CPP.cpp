@@ -426,6 +426,11 @@ private:
     void onRemoveCartItem();
     void onPay();
 
+    bool initializeFullUi(std::wstring& failureReason);
+    void destroyAllChildWindows();
+    void enterMinimalMode(const std::wstring& reason);
+    void layoutMinimalMode();
+
     void drawCategoryButton(LPDRAWITEMSTRUCT dis);
     void drawProductButton(LPDRAWITEMSTRUCT dis);
     void drawQuickAmountButton(LPDRAWITEMSTRUCT dis);
@@ -495,6 +500,9 @@ private:
     std::vector<std::wstring> cartDisplayLines_;
 
     std::wstring infoText_;
+    bool minimalMode_ = false;
+    HWND minimalMessageLabel_ = nullptr;
+    std::wstring minimalMessage_;
 
     UINT dpiX_ = 96;
     UINT dpiY_ = 96;
@@ -667,6 +675,9 @@ void CashSlothGUI::onDestroy() {
 }
 
 void CashSlothGUI::onCommand(int controlId, int notificationCode) {
+    if (minimalMode_) {
+        return;
+    }
     if (controlId >= ID_CATEGORY_BASE && controlId < ID_CATEGORY_BASE + static_cast<int>(categoryButtons_.size())) {
         if (notificationCode == BN_CLICKED) {
             selectedCategoryIndex_ = controlId - ID_CATEGORY_BASE;
@@ -737,6 +748,9 @@ void CashSlothGUI::onCommand(int controlId, int notificationCode) {
 }
 
 void CashSlothGUI::onDrawItem(LPDRAWITEMSTRUCT dis) {
+    if (minimalMode_) {
+        return;
+    }
     if (dis->CtlType != ODT_BUTTON) {
         return;
     }
@@ -754,6 +768,11 @@ void CashSlothGUI::onDrawItem(LPDRAWITEMSTRUCT dis) {
 }
 
 HBRUSH CashSlothGUI::onCtlColorStatic(HDC dc, HWND hwnd) {
+    if (minimalMode_) {
+        SetBkMode(dc, TRANSPARENT);
+        SetTextColor(dc, GetSysColor(COLOR_WINDOWTEXT));
+        return GetSysColorBrush(COLOR_WINDOW);
+    }
     SetBkMode(dc, TRANSPARENT);
     if (hwnd == summaryLabel_) {
         SetTextColor(dc, style_.palette.accentSoft);
@@ -768,6 +787,11 @@ HBRUSH CashSlothGUI::onCtlColorStatic(HDC dc, HWND hwnd) {
 }
 
 HBRUSH CashSlothGUI::onCtlColorPanel(HDC dc) {
+    if (minimalMode_) {
+        SetBkColor(dc, GetSysColor(COLOR_WINDOW));
+        SetTextColor(dc, GetSysColor(COLOR_WINDOWTEXT));
+        return GetSysColorBrush(COLOR_WINDOW);
+    }
     SetBkColor(dc, style_.palette.panelBase);
     SetTextColor(dc, style_.palette.textPrimary);
     return panelBrush_;
@@ -776,6 +800,12 @@ HBRUSH CashSlothGUI::onCtlColorPanel(HDC dc) {
 void CashSlothGUI::onPaint() {
     PAINTSTRUCT ps;
     HDC dc = BeginPaint(window_, &ps);
+
+    if (minimalMode_) {
+        FillRect(dc, &ps.rcPaint, GetSysColorBrush(COLOR_WINDOW));
+        EndPaint(window_, &ps);
+        return;
+    }
 
     drawBackdrop(dc);
 
@@ -1230,6 +1260,9 @@ void CashSlothGUI::updateCategoryHighlight() {
 }
 
 void CashSlothGUI::refreshCart() {
+    if (minimalMode_) {
+        return;
+    }
     SendMessageW(cartList_, WM_SETREDRAW, FALSE, 0);
     SendMessageW(cartList_, LB_RESETCONTENT, 0, 0);
     cartDisplayLines_.clear();
@@ -1254,6 +1287,9 @@ void CashSlothGUI::refreshCart() {
 }
 
 void CashSlothGUI::refreshStatus() {
+    if (minimalMode_) {
+        return;
+    }
     std::wstring summary = L"Summe: " + toWide(formatCurrency(cart_.total()));
     summary += L"    Kundengeld: " + toWide(formatCurrency(cart_.credit()));
     summary += L"    Rückgeld: " + toWide(formatCurrency(cart_.change()));
@@ -1263,10 +1299,19 @@ void CashSlothGUI::refreshStatus() {
 
 void CashSlothGUI::showInfo(const std::wstring& text) {
     infoText_ = text;
+    if (minimalMode_) {
+        if (minimalMessageLabel_) {
+            SetWindowTextW(minimalMessageLabel_, minimalMessage_.c_str());
+        }
+        return;
+    }
     SetWindowTextW(infoLabel_, text.c_str());
 }
 
 void CashSlothGUI::addCredit(double amount) {
+    if (minimalMode_) {
+        return;
+    }
     cart_.addCredit(amount);
     refreshCart();
     std::wstring message = L"Kundengeld +" + toWide(formatCurrency(amount));
@@ -1274,6 +1319,9 @@ void CashSlothGUI::addCredit(double amount) {
 }
 
 void CashSlothGUI::onAddCredit() {
+    if (minimalMode_) {
+        return;
+    }
     wchar_t buffer[64]{};
     GetWindowTextW(manualEntry_, buffer, static_cast<int>(std::size(buffer)));
     std::string text = toNarrow(buffer);
@@ -1289,6 +1337,9 @@ void CashSlothGUI::onAddCredit() {
 }
 
 void CashSlothGUI::onUndoCredit() {
+    if (minimalMode_) {
+        return;
+    }
     const auto undone = cart_.undoCredit();
     if (!undone.has_value()) {
         MessageBoxW(window_, L"Keine Kundengeldbuchung vorhanden.", L"Hinweis", MB_ICONINFORMATION | MB_OK);
@@ -1300,6 +1351,9 @@ void CashSlothGUI::onUndoCredit() {
 }
 
 void CashSlothGUI::onRemoveCartItem() {
+    if (minimalMode_) {
+        return;
+    }
     const int selection = static_cast<int>(SendMessageW(cartList_, LB_GETCURSEL, 0, 0));
     if (selection == LB_ERR) {
         MessageBoxW(window_, L"Bitte eine Position im Warenkorb auswählen.", L"Hinweis", MB_ICONINFORMATION | MB_OK);
@@ -1311,6 +1365,9 @@ void CashSlothGUI::onRemoveCartItem() {
 }
 
 void CashSlothGUI::onPay() {
+    if (minimalMode_) {
+        return;
+    }
     if (cart_.empty()) {
         MessageBoxW(window_, L"Der Warenkorb ist leer.", L"Hinweis", MB_ICONINFORMATION | MB_OK);
         return;
