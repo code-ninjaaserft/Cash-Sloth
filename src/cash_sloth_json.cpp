@@ -3,10 +3,34 @@
 #include <cctype>
 #include <string>
 
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
+namespace {
+
+std::string encodeUtf8FromCodepoint(unsigned codepoint) {
+    std::string encoded;
+    auto appendByte = [&](unsigned char byte) {
+        encoded.push_back(static_cast<char>(byte));
+    };
+    if (codepoint <= 0x7F) {
+        appendByte(static_cast<unsigned char>(codepoint));
+    } else if (codepoint <= 0x7FF) {
+        appendByte(static_cast<unsigned char>(0xC0 | ((codepoint >> 6) & 0x1F)));
+        appendByte(static_cast<unsigned char>(0x80 | (codepoint & 0x3F)));
+    } else if (codepoint <= 0xFFFF) {
+        appendByte(static_cast<unsigned char>(0xE0 | ((codepoint >> 12) & 0x0F)));
+        appendByte(static_cast<unsigned char>(0x80 | ((codepoint >> 6) & 0x3F)));
+        appendByte(static_cast<unsigned char>(0x80 | (codepoint & 0x3F)));
+    } else if (codepoint <= 0x10FFFF) {
+        appendByte(static_cast<unsigned char>(0xF0 | ((codepoint >> 18) & 0x07)));
+        appendByte(static_cast<unsigned char>(0x80 | ((codepoint >> 12) & 0x3F)));
+        appendByte(static_cast<unsigned char>(0x80 | ((codepoint >> 6) & 0x3F)));
+        appendByte(static_cast<unsigned char>(0x80 | (codepoint & 0x3F)));
+    } else {
+        throw std::runtime_error("Unsupported Unicode codepoint in JSON escape");
+    }
+    return encoded;
+}
+
+}  // namespace
 
 namespace cashsloth {
 
@@ -178,9 +202,7 @@ std::string JsonParser::parseString() {
                     if (codepoint <= 0x7F) {
                         result.push_back(static_cast<char>(codepoint));
                     } else {
-                        char buffer[5]{};
-                        const int bytes = WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<LPCWCH>(&codepoint), 1, buffer, 4, nullptr, nullptr);
-                        result.append(buffer, buffer + bytes);
+                        result += encodeUtf8FromCodepoint(codepoint);
                     }
                     break;
                 }
