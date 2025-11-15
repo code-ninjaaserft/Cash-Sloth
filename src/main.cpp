@@ -1,4 +1,15 @@
-﻿#define NOMINMAX
+#if !defined(_WIN32)
+#include <cstdlib>
+#include <iostream>
+
+int main() {
+    std::cerr << "Cash-Sloth POS Touch requires Windows to run." << std::endl;
+    return EXIT_FAILURE;
+}
+
+#else
+
+#define NOMINMAX
 #include <windows.h>
 #include <commctrl.h>
 #include <algorithm>
@@ -25,6 +36,7 @@
 #pragma comment(lib, "Comctl32.lib")
 #pragma comment(lib, "Gdi32.lib")
 #pragma comment(lib, "UxTheme.lib")
+#endif  // defined(_MSC_VER)
 
 namespace cashsloth {
 
@@ -1700,3 +1712,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmd
     return wWinMain(hInstance, hPrevInstance, nullptr, nCmdShow);
 }
 #endif
+
+#endif  // !defined(_WIN32)

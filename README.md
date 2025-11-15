@@ -43,6 +43,20 @@ mingw32-make CXX=g++
 The resulting binary (`cash-sloth.exe`) is written to the repository root. Run it from
 there so the executable can resolve the JSON assets located in the `assets/` directory.
 
+### Visual Studio / CMake build
+
+If you prefer CMake or Visual Studio, generate a build directory and let CMake copy the
+runtime assets next to the produced executable automatically:
+
+```
+cmake -S . -B build
+cmake --build build --config Release
+```
+
+When the build finishes, the freshly built `cash-sloth.exe` lives under
+`build/Release/` (or the configuration-specific output directory selected by your
+generator) together with an `assets/` folder so you can launch the program immediately.
+
 ## Runtime assets
 
 When distributing the application, place `cash-sloth.exe`, `lauch.exe`, and the `assets`
