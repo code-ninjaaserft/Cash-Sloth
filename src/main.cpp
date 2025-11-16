@@ -405,11 +405,10 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     layout.client = {0, 0, windowWidth, windowHeight};
 
     constexpr double kBaseWidth = 1280.0;
-    constexpr double kBaseHeight = 720.0;
-    layout.uniformScale = std::clamp(
-        std::min(windowWidth / kBaseWidth, windowHeight / kBaseHeight),
-        0.5,
-        3.0);
+    constexpr double kBaseHeight = 840.0;
+    layout.uniformScale = std::min(
+        static_cast<double>(windowWidth) / kBaseWidth,
+        static_cast<double>(windowHeight) / kBaseHeight);
     layout.fontScale = std::clamp(layout.uniformScale, 0.8, 1.35);
 
     auto scaled = [&](int value) {
@@ -550,6 +549,8 @@ private:
     void ensureSectionTitle(HWND& handle, const std::wstring& text, int x, int y, int width);
     int scale(int value) const;
     void updateAnimation();
+    void ensureBackBuffer(int width, int height);
+    void destroyBackBuffer();
 
     HINSTANCE instance_;
     HWND window_ = nullptr;
@@ -569,6 +570,10 @@ private:
     HBRUSH backgroundBrush_ = nullptr;
     HBRUSH panelBrush_ = nullptr;
     HPEN panelBorderPen_ = nullptr;
+    HDC backBufferDC_ = nullptr;
+    HBITMAP backBufferBitmap_ = nullptr;
+    HBITMAP backBufferOldBitmap_ = nullptr;
+    SIZE backBufferSize_{0, 0};
 
     Layout layout_{};
 
@@ -661,18 +666,15 @@ int CashSlothGUI::run(int nCmdShow) {
         return EXIT_FAILURE;
     }
 
-    const int windowWidth = 1280;
-    const int windowHeight = 840;
-
     HWND window = CreateWindowExW(
         WS_EX_APPWINDOW,
         className,
         kWindowTitle,
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+        WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        windowWidth,
-        windowHeight,
+        1280,
+        840,
         nullptr,
         nullptr,
         instance_,
@@ -926,11 +928,21 @@ void CashSlothGUI::onPaint() {
         return;
     }
 
-    drawBackdrop(dc);
+    const int width = layout_.client.right - layout_.client.left;
+    const int height = layout_.client.bottom - layout_.client.top;
+    ensureBackBuffer(width, height);
 
-    drawPanel(dc, categoryPanelRect());
-    drawPanel(dc, productPanelRect());
-    drawPanel(dc, cartPanelRect());
+    HDC paintDC = backBufferDC_ ? backBufferDC_ : dc;
+
+    drawBackdrop(paintDC);
+
+    drawPanel(paintDC, categoryPanelRect());
+    drawPanel(paintDC, productPanelRect());
+    drawPanel(paintDC, cartPanelRect());
+
+    if (backBufferDC_ && backBufferBitmap_) {
+        BitBlt(dc, 0, 0, width, height, backBufferDC_, 0, 0, SRCCOPY);
+    }
 
     EndPaint(window_, &ps);
 }
@@ -958,6 +970,7 @@ void CashSlothGUI::releaseGdiResources() {
     if (panelBrush_) { DeleteObject(panelBrush_); panelBrush_ = nullptr; }
     if (backgroundBrush_) { DeleteObject(backgroundBrush_); backgroundBrush_ = nullptr; }
     if (panelBorderPen_) { DeleteObject(panelBorderPen_); panelBorderPen_ = nullptr; }
+    destroyBackBuffer();
 }
 
 void CashSlothGUI::refreshFonts() {
@@ -987,7 +1000,12 @@ void CashSlothGUI::calculateLayout() {
     const int width = client.right - client.left;
     const int height = client.bottom - client.top;
 
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+
     layout_ = computeLayout(style_.metrics, width, height);
+    ensureBackBuffer(width, height);
     clientRect_ = layout_.client;
     categoryArea_ = layout_.categoryArea;
     creditPanelArea_ = layout_.creditPanelArea;
@@ -1889,6 +1907,63 @@ void CashSlothGUI::updateAnimation() {
         clientRect_.top + scale(360)
     };
     InvalidateRect(window_, &accentArea, FALSE);
+}
+
+void CashSlothGUI::ensureBackBuffer(int width, int height) {
+    if (width <= 0 || height <= 0 || !window_) {
+        return;
+    }
+
+    if (backBufferBitmap_ && backBufferSize_.cx == width && backBufferSize_.cy == height) {
+        return;
+    }
+
+    if (!backBufferDC_) {
+        backBufferDC_ = CreateCompatibleDC(nullptr);
+    }
+    if (!backBufferDC_) {
+        return;
+    }
+
+    if (backBufferBitmap_) {
+        if (backBufferOldBitmap_) {
+            SelectObject(backBufferDC_, backBufferOldBitmap_);
+            backBufferOldBitmap_ = nullptr;
+        }
+        DeleteObject(backBufferBitmap_);
+        backBufferBitmap_ = nullptr;
+    }
+
+    HDC screen = GetDC(window_);
+    if (!screen) {
+        return;
+    }
+    HBITMAP bmp = CreateCompatibleBitmap(screen, width, height);
+    ReleaseDC(window_, screen);
+    if (!bmp) {
+        return;
+    }
+
+    backBufferOldBitmap_ = static_cast<HBITMAP>(SelectObject(backBufferDC_, bmp));
+    backBufferBitmap_ = bmp;
+    backBufferSize_.cx = width;
+    backBufferSize_.cy = height;
+}
+
+void CashSlothGUI::destroyBackBuffer() {
+    if (backBufferDC_ && backBufferOldBitmap_) {
+        SelectObject(backBufferDC_, backBufferOldBitmap_);
+        backBufferOldBitmap_ = nullptr;
+    }
+    if (backBufferBitmap_) {
+        DeleteObject(backBufferBitmap_);
+        backBufferBitmap_ = nullptr;
+    }
+    if (backBufferDC_) {
+        DeleteDC(backBufferDC_);
+        backBufferDC_ = nullptr;
+    }
+    backBufferSize_ = {0, 0};
 }
 
 void CashSlothGUI::drawBackdrop(HDC dc) const {
