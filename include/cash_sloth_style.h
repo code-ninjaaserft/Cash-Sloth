@@ -23,8 +23,8 @@ namespace cashsloth {
 
 struct StyleSheet {
     struct Palette {
-        COLORREF background = RGB(10, 13, 23);
-        COLORREF backgroundGlow = RGB(18, 24, 40);
+        COLORREF background = RGB(12, 82, 66);
+        COLORREF backgroundGlow = RGB(18, 104, 82);
         COLORREF panelBase = RGB(22, 29, 45);
         COLORREF panelElevated = RGB(27, 35, 55);
         COLORREF panelBorder = RGB(41, 52, 79);
