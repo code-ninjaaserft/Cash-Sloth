@@ -1,3 +1,5 @@
+#include <windows.h>
+#include <windowsx.h>
 #if !defined(_WIN32)
 #include <cstdlib>
 #include <iostream>
