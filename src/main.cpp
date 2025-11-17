@@ -497,7 +497,6 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         + gap
         + layout.metrics.actionButtonHeight
         + actionPadding;
-    const int summaryHeight = layout.metrics.summaryHeight;
     const int columnStart = margin;
     const int rightLeft = columnStart + categoriesWidth + columnGap + productsWidth + columnGap;
     const int rightRight = rightLeft + cartWidth;
