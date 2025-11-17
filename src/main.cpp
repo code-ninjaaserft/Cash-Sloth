@@ -11,6 +11,7 @@ int main() {
 
 #define NOMINMAX
 #include <windows.h>
+#include <windowsx.h>
 #ifdef max
 #undef max
 #endif
