@@ -506,7 +506,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     const double cartRatio = 0.6;
     const int cartAreaWidth = static_cast<int>(std::lround((rightArea.right - rightArea.left) * cartRatio));
-    const int paymentAreaWidth = std::max<int>(0, static_cast<int>(rightArea.right - rightArea.left) - cartAreaWidth);
+    const int paymentAreaWidth = std::max(0, (rightArea.right - rightArea.left) - cartAreaWidth);
 
     layout.rcCartArea = {rightArea.left, rightArea.top, rightArea.left + cartAreaWidth, rightArea.bottom};
     layout.rcPaymentArea = {layout.rcCartArea.right, rightArea.top, rightArea.left + cartAreaWidth + paymentAreaWidth, rightArea.bottom};
@@ -528,7 +528,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     rcSummary = {cartContentLeft, cartBottom, cartContentRight, summaryBottom};
     consumeSpace(columnGap);
 
-    const int cartListBottom = std::max<int>(static_cast<int>(layout.rcCartArea.top + cartPadding), cartBottom);
+    const int cartListBottom = std::max(layout.rcCartArea.top + cartPadding, cartBottom);
     layout.rcCategoryPanel = {columnStart, contentTop, columnStart + categoriesWidth, contentBottom};
     layout.rcProductPanel = {layout.rcCategoryPanel.right + columnGap, contentTop, layout.rcCategoryPanel.right + columnGap + productsWidth, contentBottom};
     layout.rcCartPanel = {cartContentLeft, layout.rcCartArea.top + cartPadding, cartContentRight, cartListBottom};
@@ -536,7 +536,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     int payBottom = layout.rcPaymentArea.bottom - cartPadding;
     auto consumePaySpace = [&](int amount) {
-        payBottom = std::max<int>(static_cast<int>(layout.rcPaymentArea.top + cartPadding), payBottom - amount);
+        payBottom = std::max(layout.rcPaymentArea.top + cartPadding, payBottom - amount);
     };
 
     RECT rcAction{};
