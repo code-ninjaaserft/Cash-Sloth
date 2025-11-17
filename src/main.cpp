@@ -552,7 +552,6 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     layout.rcCartSummary = rcSummary;
     layout.rcCreditPanel = rcCredit;
-    layout.rcActionPanel = rcAction;
 
     layout.rcQuickGrid = {
         layout.rcCreditPanel.left + creditPadding,
