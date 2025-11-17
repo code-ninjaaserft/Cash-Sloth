@@ -64,6 +64,8 @@ struct Layout {
     int heroWidth = 0;
     int badgeWidth = 0;
     int infoLabelWidth = 0;
+    int titleHeight = 0;
+    int titleGap = 0;
 };
 
 struct Article {
@@ -411,7 +413,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     constexpr double kBaseHeight = 900.0;
     const double sx = static_cast<double>(windowWidth) / kBaseWidth;
     const double sy = static_cast<double>(windowHeight) / kBaseHeight;
-    layout.scale = std::clamp(std::min(sx, sy), 0.5, 3.0);
+    layout.scale = std::clamp(std::min(sx, sy), 0.5, 2.0);
     layout.fontScale = layout.scale;
 
     auto scaled = [&](int value) {
@@ -447,8 +449,12 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     layout.infoLabelWidth = scaled(360);
     layout.heroWidth = std::max(scaled(420), headerWidth - layout.badgeWidth - layout.infoLabelWidth - gap * 2);
 
-    const int contentTop = layout.rcHeader.bottom + gap;
-    const int contentBottom = layout.rcFooter.top - gap;
+    layout.titleHeight = scaled(26);
+    layout.titleGap = std::max(2, gap / 2);
+
+    const int titleSpace = layout.titleHeight + layout.titleGap;
+    const int contentTop = layout.rcHeader.bottom + gap + titleSpace;
+    const int contentBottom = layout.rcFooter.top - gap - titleSpace;
 
     const int leftWidth = layout.metrics.leftColumnWidth;
     const int rightWidth = layout.metrics.rightColumnWidth;
@@ -458,7 +464,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int quickRows = (std::max)(1, static_cast<int>((quickAmountCount + quickColumns - 1) / quickColumns));
     const int quickGridHeight = quickRows * layout.metrics.quickButtonHeight + (quickRows - 1) * gap;
 
-    const int titleHeight = scaled(28);
+    const int titleHeight = layout.titleHeight;
     const int creditPadding = gap;
     const int creditHeight = creditPadding
         + layout.metrics.quickButtonHeight  // edit height
@@ -478,9 +484,10 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         + actionPadding;
 
     const int secondaryHeight = std::max(creditHeight, actionHeight);
-    const int primaryHeight = std::max(0, (contentBottom - contentTop) - gap - secondaryHeight);
+    const int availableHeight = std::max(0, contentBottom - contentTop);
+    const int primaryHeight = std::max(0, availableHeight - titleSpace - secondaryHeight);
     const int contentPrimaryBottom = contentTop + primaryHeight;
-    const int contentSecondaryTop = contentPrimaryBottom + gap;
+    const int contentSecondaryTop = contentPrimaryBottom + titleSpace;
 
     layout.rcCategoryPanel = {margin, contentTop, margin + leftWidth, contentPrimaryBottom};
     layout.rcProductPanel = {layout.rcCategoryPanel.right + gap, contentTop, layout.rcCategoryPanel.right + gap + centerWidth, contentPrimaryBottom};
@@ -582,9 +589,6 @@ private:
     void releaseBackBuffer();
     void drawPanel(HDC dc, const RECT& area) const;
     void drawBackdrop(HDC dc) const;
-    RECT categoryPanelRect() const;
-    RECT productPanelRect() const;
-    RECT cartPanelRect() const;
     HFONT createFont(const StyleSheet::FontSpec& spec) const;
     void ensureSectionTitle(HWND& handle, const std::wstring& text, int x, int y, int width);
     int scale(int value) const;
@@ -940,7 +944,7 @@ HBRUSH CashSlothGUI::onCtlColorStatic(HDC dc, HWND hwnd) {
     } else {
         SetTextColor(dc, style_.palette.textPrimary);
     }
-    return backgroundBrush_;
+    return panelBrush_;
 }
 
 HBRUSH CashSlothGUI::onCtlColorPanel(HDC dc) {
@@ -972,9 +976,13 @@ void CashSlothGUI::onPaint() {
     HDC paintDC = backBufferDC_ ? backBufferDC_ : dc;
 
     drawBackdrop(paintDC);
-    drawPanel(paintDC, categoryPanelRect());
-    drawPanel(paintDC, productPanelRect());
-    drawPanel(paintDC, cartPanelRect());
+    drawPanel(paintDC, layout_.rcHeader);
+    drawPanel(paintDC, layout_.rcFooter);
+    drawPanel(paintDC, layout_.rcCategoryPanel);
+    drawPanel(paintDC, layout_.rcProductPanel);
+    drawPanel(paintDC, layout_.rcCartPanel);
+    drawPanel(paintDC, layout_.rcCreditPanel);
+    drawPanel(paintDC, layout_.rcActionPanel);
 
     if (paintDC != dc) {
         BitBlt(dc, 0, 0, width, height, paintDC, 0, 0, SRCCOPY);
@@ -1082,40 +1090,47 @@ void CashSlothGUI::applyLayout() {
         return;
     }
 
-    const int margin = layout_.metrics.margin;
     const int headerHeight = layout_.rcHeader.bottom - layout_.rcHeader.top;
     const int footerHeight = layout_.rcFooter.bottom - layout_.rcFooter.top;
     const int contentWidth = layout_.rcHeader.right - layout_.rcHeader.left;
+    const int headerPadding = layout_.metrics.gap;
+    const int footerPadding = layout_.metrics.gap;
+    const int headerInnerLeft = layout_.rcHeader.left + headerPadding;
+    const int headerInnerRight = layout_.rcHeader.right - headerPadding;
+    const int headerInnerHeight = headerHeight - headerPadding * 2;
 
     if (heroTitleLabel_) {
-        MoveWindow(heroTitleLabel_, layout_.rcHeader.left, layout_.rcHeader.top, layout_.heroWidth, headerHeight / 2, FALSE);
+        MoveWindow(heroTitleLabel_, headerInnerLeft, layout_.rcHeader.top + headerPadding, layout_.heroWidth, headerInnerHeight / 2, FALSE);
         SendMessageW(heroTitleLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(headingFont_), FALSE);
     }
     if (heroSubtitleLabel_) {
-        MoveWindow(heroSubtitleLabel_, layout_.rcHeader.left, layout_.rcHeader.top + headerHeight / 2 - scale(6), layout_.heroWidth, headerHeight / 2, FALSE);
+        MoveWindow(heroSubtitleLabel_, headerInnerLeft, layout_.rcHeader.top + headerPadding + headerInnerHeight / 2 - scale(4), layout_.heroWidth, headerInnerHeight / 2, FALSE);
         SendMessageW(heroSubtitleLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(smallFont_), FALSE);
     }
     if (heroBadgeLabel_) {
-        MoveWindow(heroBadgeLabel_, layout_.rcHeader.right - layout_.badgeWidth, layout_.rcHeader.top, layout_.badgeWidth, headerHeight / 2, FALSE);
+        MoveWindow(heroBadgeLabel_, headerInnerRight - layout_.badgeWidth, layout_.rcHeader.top + headerPadding, layout_.badgeWidth, headerInnerHeight / 2, FALSE);
         SendMessageW(heroBadgeLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
     }
     if (infoLabel_) {
-        MoveWindow(infoLabel_, layout_.rcHeader.right - layout_.infoLabelWidth, layout_.rcHeader.top + headerHeight / 2 - scale(4), layout_.infoLabelWidth, headerHeight / 2, FALSE);
+        MoveWindow(infoLabel_, headerInnerRight - layout_.infoLabelWidth, layout_.rcHeader.top + headerPadding + headerInnerHeight / 2 - scale(2), layout_.infoLabelWidth, headerInnerHeight / 2, FALSE);
         SendMessageW(infoLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(smallFont_), FALSE);
     }
     if (summaryLabel_) {
-        MoveWindow(summaryLabel_, layout_.rcFooter.left, layout_.rcFooter.top, contentWidth, footerHeight, FALSE);
+        MoveWindow(summaryLabel_, layout_.rcFooter.left + footerPadding, layout_.rcFooter.top + footerPadding, contentWidth - footerPadding * 2, footerHeight - footerPadding * 2, FALSE);
         SendMessageW(summaryLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
     }
 
-    ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left, layout_.rcCartPanel.top - scale(32), layout_.rcCartPanel.right - layout_.rcCartPanel.left);
-    ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left, layout_.rcCategoryPanel.top - scale(32), layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left);
-    ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left, layout_.rcProductPanel.top - scale(32), layout_.rcProductPanel.right - layout_.rcProductPanel.left);
-    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left, layout_.rcCreditPanel.top - scale(32), layout_.rcCreditPanel.right - layout_.rcCreditPanel.left);
-    ensureSectionTitle(actionTitle_, L"Aktionen", layout_.rcActionPanel.left, layout_.rcActionPanel.top - scale(32), layout_.rcActionPanel.right - layout_.rcActionPanel.left);
+    const int titleHeight = layout_.titleHeight;
+    const int titleGap = layout_.titleGap;
+    ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left, layout_.rcCartPanel.top - titleHeight - titleGap, layout_.rcCartPanel.right - layout_.rcCartPanel.left);
+    ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left, layout_.rcCategoryPanel.top - titleHeight - titleGap, layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left);
+    ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left, layout_.rcProductPanel.top - titleHeight - titleGap, layout_.rcProductPanel.right - layout_.rcProductPanel.left);
+    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left, layout_.rcCreditPanel.top - titleHeight - titleGap, layout_.rcCreditPanel.right - layout_.rcCreditPanel.left);
+    ensureSectionTitle(actionTitle_, L"Aktionen", layout_.rcActionPanel.left, layout_.rcActionPanel.top - titleHeight - titleGap, layout_.rcActionPanel.right - layout_.rcActionPanel.left);
 
     if (cartList_) {
-        MoveWindow(cartList_, layout_.rcCartPanel.left, layout_.rcCartPanel.top, layout_.rcCartPanel.right - layout_.rcCartPanel.left, layout_.rcCartPanel.bottom - layout_.rcCartPanel.top, FALSE);
+        const int padding = layout_.metrics.gap;
+        MoveWindow(cartList_, layout_.rcCartPanel.left + padding, layout_.rcCartPanel.top + padding, layout_.rcCartPanel.right - layout_.rcCartPanel.left - padding * 2, layout_.rcCartPanel.bottom - layout_.rcCartPanel.top - padding * 2, FALSE);
         SendMessageW(cartList_, WM_SETFONT, reinterpret_cast<WPARAM>(tileFont_), FALSE);
     }
 
@@ -1140,7 +1155,7 @@ void CashSlothGUI::applyLayout() {
             SendMessageW(undoCreditButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
         }
 
-        const int quickTitleHeight = scale(28);
+        const int quickTitleHeight = layout_.titleHeight;
         ensureSectionTitle(quickTitle_, L"Schnellbeträge", layout_.rcCreditPanel.left + padding, layout_.rcQuickGrid.top - quickTitleHeight - buttonGap, width);
 
         const int quickTop = layout_.rcQuickGrid.top;
@@ -1211,24 +1226,26 @@ void CashSlothGUI::applyLayout() {
     if (!categoryButtons_.empty()) {
         int buttonHeight = layout_.metrics.categoryHeight;
         int buttonSpacing = layout_.metrics.categorySpacing;
-        int width = layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left;
-        int y = layout_.rcCategoryPanel.top;
+        const int padding = layout_.metrics.gap;
+        int width = layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left - padding * 2;
+        int y = layout_.rcCategoryPanel.top + padding;
         for (HWND button : categoryButtons_) {
-            MoveWindow(button, layout_.rcCategoryPanel.left, y, width, buttonHeight, FALSE);
+            MoveWindow(button, layout_.rcCategoryPanel.left + padding, y, width, buttonHeight, FALSE);
             SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
             y += buttonHeight + buttonSpacing;
         }
     }
 
     if (!productButtons_.empty() && !visibleProducts_.empty()) {
-        int availableWidth = layout_.rcProductPanel.right - layout_.rcProductPanel.left;
+        const int padding = layout_.metrics.gap;
+        int availableWidth = layout_.rcProductPanel.right - layout_.rcProductPanel.left - padding * 2;
         int tileGap = layout_.metrics.tileGap;
-        int tileHeight = layout_.metrics.productTileHeight;
         int columns = std::max(1, (availableWidth + tileGap) / (scale(220) + tileGap));
         int tileWidth = (availableWidth - tileGap * (columns - 1)) / columns;
+        int tileHeight = std::clamp(tileWidth, layout_.metrics.productTileHeight - scale(40), layout_.metrics.productTileHeight + scale(80));
 
-        int x = layout_.rcProductPanel.left;
-        int y = layout_.rcProductPanel.top;
+        int x = layout_.rcProductPanel.left + padding;
+        int y = layout_.rcProductPanel.top + padding;
         int column = 0;
         for (HWND button : productButtons_) {
             MoveWindow(button, x, y, tileWidth, tileHeight, FALSE);
@@ -1236,7 +1253,7 @@ void CashSlothGUI::applyLayout() {
             ++column;
             if (column >= columns) {
                 column = 0;
-                x = layout_.rcProductPanel.left;
+                x = layout_.rcProductPanel.left + padding;
                 y += tileHeight + tileGap;
             } else {
                 x += tileWidth + tileGap;
@@ -1334,7 +1351,7 @@ void CashSlothGUI::createInfoAndSummary() {
 }
 
 void CashSlothGUI::createCartArea() {
-    ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left, layout_.rcCartPanel.top - scale(32), layout_.rcCartPanel.right - layout_.rcCartPanel.left);
+    ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left, layout_.rcCartPanel.top - layout_.titleHeight - layout_.titleGap, layout_.rcCartPanel.right - layout_.rcCartPanel.left);
 
     cartList_ = CreateWindowExW(
         WS_EX_CLIENTEDGE,
@@ -1353,7 +1370,7 @@ void CashSlothGUI::createCartArea() {
 }
 
 void CashSlothGUI::createCreditPanel() {
-    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left, layout_.rcCreditPanel.top - scale(32), layout_.rcCreditPanel.right - layout_.rcCreditPanel.left);
+    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left, layout_.rcCreditPanel.top - layout_.titleHeight - layout_.titleGap, layout_.rcCreditPanel.right - layout_.rcCreditPanel.left);
 
     const int padding = layout_.metrics.gap;
     int width = layout_.rcCreditPanel.right - layout_.rcCreditPanel.left - padding * 2;
@@ -1409,7 +1426,7 @@ void CashSlothGUI::createCreditPanel() {
         nullptr);
     SendMessageW(undoCreditButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
 
-    int quickTitleHeight = scale(28);
+    int quickTitleHeight = layout_.titleHeight;
     ensureSectionTitle(quickTitle_, L"Schnellbeträge", layout_.rcCreditPanel.left + padding, layout_.rcQuickGrid.top - quickTitleHeight - buttonGap, width);
 
     for (HWND button : quickAmountButtons_) {
@@ -1448,7 +1465,7 @@ void CashSlothGUI::createCreditPanel() {
 }
 
 void CashSlothGUI::createActionButtons() {
-    ensureSectionTitle(actionTitle_, L"Aktionen", layout_.rcActionPanel.left, layout_.rcActionPanel.top - scale(32), layout_.rcActionPanel.right - layout_.rcActionPanel.left);
+    ensureSectionTitle(actionTitle_, L"Aktionen", layout_.rcActionPanel.left, layout_.rcActionPanel.top - layout_.titleHeight - layout_.titleGap, layout_.rcActionPanel.right - layout_.rcActionPanel.left);
 
     int padding = layout_.metrics.gap;
     int width = layout_.rcActionPanel.right - layout_.rcActionPanel.left - padding * 2;
@@ -1578,13 +1595,14 @@ void CashSlothGUI::buildCategoryButtons() {
     const auto& categories = catalogue_.categories();
     categoryOrder_.reserve(categories.size());
 
-    ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left, layout_.rcCategoryPanel.top - scale(32), layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left);
-    ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left, layout_.rcProductPanel.top - scale(32), layout_.rcProductPanel.right - layout_.rcProductPanel.left);
+    ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left, layout_.rcCategoryPanel.top - layout_.titleHeight - layout_.titleGap, layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left);
+    ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left, layout_.rcProductPanel.top - layout_.titleHeight - layout_.titleGap, layout_.rcProductPanel.right - layout_.rcProductPanel.left);
 
     int buttonHeight = layout_.metrics.categoryHeight;
     int buttonSpacing = layout_.metrics.categorySpacing;
-    int width = layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left;
-    int y = layout_.rcCategoryPanel.top;
+    int width = layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left - layout_.metrics.gap * 2;
+    int y = layout_.rcCategoryPanel.top + layout_.metrics.gap;
+    int x = layout_.rcCategoryPanel.left + layout_.metrics.gap;
 
     for (std::size_t i = 0; i < categories.size(); ++i) {
         categoryOrder_.push_back(&categories[i]);
@@ -1594,7 +1612,7 @@ void CashSlothGUI::buildCategoryButtons() {
             L"BUTTON",
             text.c_str(),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            layout_.rcCategoryPanel.left,
+            x,
             y,
             width,
             buttonHeight,
@@ -1628,14 +1646,15 @@ void CashSlothGUI::rebuildProductButtons() {
     const Category* category = categoryOrder_[static_cast<std::size_t>(selectedCategoryIndex_)];
     visibleProducts_.reserve(category->articles.size());
 
-    int availableWidth = layout_.rcProductPanel.right - layout_.rcProductPanel.left;
+    const int padding = layout_.metrics.gap;
+    int availableWidth = layout_.rcProductPanel.right - layout_.rcProductPanel.left - padding * 2;
     int tileGap = layout_.metrics.tileGap;
-    int tileHeight = layout_.metrics.productTileHeight;
     int columns = std::max(1, (availableWidth + tileGap) / (scale(220) + tileGap));
     int tileWidth = (availableWidth - tileGap * (columns - 1)) / columns;
+    int tileHeight = std::clamp(tileWidth, layout_.metrics.productTileHeight - scale(40), layout_.metrics.productTileHeight + scale(80));
 
-    int x = layout_.rcProductPanel.left;
-    int y = layout_.rcProductPanel.top;
+    int x = layout_.rcProductPanel.left + padding;
+    int y = layout_.rcProductPanel.top + padding;
     int column = 0;
 
     for (const Article& article : category->articles) {
@@ -2060,41 +2079,11 @@ void CashSlothGUI::drawBackdrop(HDC dc) const {
     DeleteObject(clip);
 }
 
-RECT CashSlothGUI::categoryPanelRect() const {
-    RECT rect = {
-        layout_.rcCategoryPanel.left - scale(12),
-        layout_.rcCategoryPanel.top - scale(40),
-        layout_.rcCategoryPanel.right + scale(12),
-        layout_.rcCreditPanel.bottom + scale(20)
-    };
-    return rect;
-}
-
-RECT CashSlothGUI::productPanelRect() const {
-    RECT rect = {
-        layout_.rcProductPanel.left - scale(12),
-        layout_.rcProductPanel.top - scale(40),
-        layout_.rcProductPanel.right + scale(12),
-        layout_.rcProductPanel.bottom + scale(20)
-    };
-    return rect;
-}
-
-RECT CashSlothGUI::cartPanelRect() const {
-    RECT rect = {
-        layout_.rcCartPanel.left - scale(12),
-        layout_.rcCartPanel.top - scale(40),
-        layout_.rcCartPanel.right + scale(12),
-        layout_.rcActionPanel.bottom + scale(20)
-    };
-    return rect;
-}
-
 HFONT CashSlothGUI::createFont(const StyleSheet::FontSpec& spec) const {
     const int scaledPointSize = std::clamp(
         static_cast<int>(std::lround(static_cast<double>(spec.sizePt) * layout_.fontScale)),
-        8,
-        40);
+        10,
+        44);
     const int logicalHeight = -MulDiv(
         scaledPointSize,
         static_cast<int>(dpiY_),
@@ -2117,7 +2106,7 @@ HFONT CashSlothGUI::createFont(const StyleSheet::FontSpec& spec) const {
 }
 
 void CashSlothGUI::ensureSectionTitle(HWND& handle, const std::wstring& text, int x, int y, int width) {
-    int height = scale(28);
+    int height = layout_.titleHeight;
     if (!handle) {
         handle = CreateWindowExW(
             0,
