@@ -550,6 +550,7 @@ private:
     HBRUSH onCtlColorPanel(HDC dc);
     void onPaint();
     void onTimer(UINT_PTR timerId);
+    LRESULT onNcHitTest(LPARAM lParam);
 
     void initDpiAndResources();
     void releaseGdiResources();
@@ -789,6 +790,8 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
         case WM_PAINT:
             self->onPaint();
             return 0;
+        case WM_NCHITTEST:
+            return self->onNcHitTest(lParam);
         case WM_SIZE:
             self->calculateLayout();
             InvalidateRect(hwnd, nullptr, FALSE);
@@ -992,6 +995,37 @@ void CashSlothGUI::onTimer(UINT_PTR timerId) {
     if (timerId == kAnimationTimerId) {
         updateAnimation();
     }
+}
+
+LRESULT CashSlothGUI::onNcHitTest(LPARAM lParam) {
+    if (fullscreen_) {
+        return HTCLIENT;
+    }
+
+    const POINT pt{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+    RECT windowRect{};
+    GetWindowRect(window_, &windowRect);
+
+    const LONG frameX = GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+    const LONG frameY = GetSystemMetrics(SM_CYSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+    const LONG scaledBorderX = std::max<LONG>(frameX, static_cast<LONG>(std::lround(10.0 * layout_.scale)));
+    const LONG scaledBorderY = std::max<LONG>(frameY, static_cast<LONG>(std::lround(10.0 * layout_.scale)));
+
+    const bool onLeft = pt.x < windowRect.left + scaledBorderX;
+    const bool onRight = pt.x >= windowRect.right - scaledBorderX;
+    const bool onTop = pt.y < windowRect.top + scaledBorderY;
+    const bool onBottom = pt.y >= windowRect.bottom - scaledBorderY;
+
+    if (onTop && onLeft) { return HTTOPLEFT; }
+    if (onTop && onRight) { return HTTOPRIGHT; }
+    if (onBottom && onLeft) { return HTBOTTOMLEFT; }
+    if (onBottom && onRight) { return HTBOTTOMRIGHT; }
+    if (onLeft) { return HTLEFT; }
+    if (onRight) { return HTRIGHT; }
+    if (onTop) { return HTTOP; }
+    if (onBottom) { return HTBOTTOM; }
+
+    return HTCLIENT;
 }
 void CashSlothGUI::initDpiAndResources() {
     HDC screen = GetDC(window_);
