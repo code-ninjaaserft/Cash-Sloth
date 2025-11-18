@@ -603,14 +603,19 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int creditInnerLeft = layout.rcCreditPanel.left + creditPadding;
     const int creditInnerRight = layout.rcCreditPanel.right - creditPadding;
     const int quickTop = layout.rcCreditPanel.top + creditPadding + layout.titleHeight + layout.titleGap;
-    const int manualBottom = layout.rcCreditPanel.bottom - creditPadding;
+
+    // explizit auf int casten, damit std::min nicht LONG vs int mischt:
+    const int creditBottomInt = static_cast<int>(layout.rcCreditPanel.bottom);
+    const int maxQuickBottom = creditBottomInt - creditPadding - manualBlockHeight - gap;
+    const int quickBottom = std::min(maxQuickBottom, quickTop + quickGridHeight);
 
     layout.rcQuickGrid = {
         creditInnerLeft,
         quickTop,
         creditInnerRight,
-        std::min(layout.rcCreditPanel.bottom - creditPadding - manualBlockHeight - gap, quickTop + quickGridHeight)
+        quickBottom
     };
+
 
     layout.rcCategoryFooter = {
         layout.rcCategoryPanel.left,
