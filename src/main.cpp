@@ -647,10 +647,12 @@ private:
     void releaseBackBuffer();
     void drawPanel(HDC dc, const RECT& area) const;
     void drawBackdrop(HDC dc) const;
+    void drawCatalogueErrorBanner(HDC dc) const;
     HFONT createFont(const StyleSheet::FontSpec& spec) const;
     void ensureSectionTitle(HWND& handle, const std::wstring& text, int x, int y, int width);
     int scale(int value) const;
     void updateAnimation();
+    void updateHeaderVisibility();
 
     HINSTANCE instance_;
     HWND window_ = nullptr;
@@ -661,6 +663,7 @@ private:
     std::vector<const Category*> categoryOrder_;
     std::vector<const Article*> visibleProducts_;
     std::filesystem::path exeDirectory_;
+    std::wstring catalogueErrorMessage_;
 
     HFONT headingFont_ = nullptr;
     HFONT tileFont_ = nullptr;
@@ -1042,6 +1045,7 @@ void CashSlothGUI::onPaint() {
     drawPanel(paintDC, layout_.rcCartSummary);
     drawPanel(paintDC, layout_.rcCreditPanel);
     drawPanel(paintDC, layout_.rcActionPanel);
+    drawCatalogueErrorBanner(paintDC);
 
     if (paintDC != dc) {
         BitBlt(dc, 0, 0, width, height, paintDC, 0, 0, SRCCOPY);
@@ -1322,6 +1326,24 @@ void CashSlothGUI::applyLayout() {
         }
     }
 
+}
+
+void CashSlothGUI::updateHeaderVisibility() {
+    if (minimalMode_) {
+        return;
+    }
+
+    const int showCmd = catalogueErrorMessage_.empty() ? SW_SHOW : SW_HIDE;
+    auto setVisibility = [&](HWND handle) {
+        if (handle) {
+            ShowWindow(handle, showCmd);
+        }
+    };
+
+    setVisibility(heroTitleLabel_);
+    setVisibility(heroSubtitleLabel_);
+    setVisibility(heroBadgeLabel_);
+    setVisibility(infoLabel_);
 }
 
 void CashSlothGUI::createInfoAndSummary() {
@@ -1634,6 +1656,7 @@ void CashSlothGUI::loadCatalogue() {
     for (const auto& candidate : candidates) {
         if (catalogue_.loadFromFile(candidate)) {
             infoText_ = std::wstring(L"Katalog geladen aus: ") + candidate.wstring();
+            catalogueErrorMessage_.clear();
             loaded = true;
             break;
         }
@@ -1641,7 +1664,10 @@ void CashSlothGUI::loadCatalogue() {
     if (!loaded) {
         catalogue_.loadDefault();
         infoText_ = L"Standardkatalog geladen (assets/cash_sloth_catalog.json nicht gefunden).";
+        catalogueErrorMessage_ = L"Produktkatalog konnte nicht geladen werden. Es wird ein Standardkatalog verwendet.";
     }
+
+    updateHeaderVisibility();
 }
 
 void CashSlothGUI::buildCategoryButtons() {
@@ -2135,6 +2161,38 @@ void CashSlothGUI::drawBackdrop(HDC dc) const {
     GradientFill(dc, accentVerts, 2, &rect, 1, GRADIENT_FILL_RECT_H);
     RestoreDC(dc, state);
     DeleteObject(clip);
+}
+
+void CashSlothGUI::drawCatalogueErrorBanner(HDC dc) const {
+    if (catalogueErrorMessage_.empty()) {
+        return;
+    }
+
+    RECT banner = layout_.rcHeader;
+    const int padding = layout_.metrics.gap;
+    banner.left += padding;
+    banner.right -= padding;
+    banner.top += padding;
+    banner.bottom -= padding;
+
+    const COLORREF bannerColor = RGB(170, 34, 34);
+    const HBRUSH brush = CreateSolidBrush(bannerColor);
+    FillRect(dc, &banner, brush);
+    DeleteObject(brush);
+
+    RECT textRect = banner;
+    const int textPadding = padding;
+    textRect.left += textPadding;
+    textRect.right -= textPadding;
+
+    const int state = SaveDC(dc);
+    SetBkMode(dc, TRANSPARENT);
+    SetTextColor(dc, RGB(255, 255, 255));
+    if (headingFont_) {
+        SelectObject(dc, headingFont_);
+    }
+    DrawTextW(dc, catalogueErrorMessage_.c_str(), -1, &textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
+    RestoreDC(dc, state);
 }
 
 HFONT CashSlothGUI::createFont(const StyleSheet::FontSpec& spec) const {
