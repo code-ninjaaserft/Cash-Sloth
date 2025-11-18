@@ -530,12 +530,30 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int innerGap = gap;
     const int minCartListWidth = scaled(260);
     const int minPaymentWidth = scaled(220);
-    int cartListWidth = std::max(minCartListWidth, static_cast<int>(std::lround(static_cast<double>(cartWidth - innerGap) * 0.56)));
-    int payWidth = cartWidth - innerGap - cartListWidth;
-    if (payWidth < minPaymentWidth) {
-        payWidth = minPaymentWidth;
-        cartListWidth = std::max(minCartListWidth, cartWidth - innerGap - payWidth);
+    const int availableCartContent = std::max(0, cartWidth - innerGap);
+    const int minTotalWidth = minCartListWidth + minPaymentWidth;
+
+    int cartListWidth = 0;
+    int payWidth = 0;
+
+    if (minTotalWidth > availableCartContent) {
+        const double factor = (minTotalWidth > 0)
+            ? static_cast<double>(availableCartContent) / static_cast<double>(minTotalWidth)
+            : 0.0;
+        cartListWidth = static_cast<int>(std::floor(static_cast<double>(minCartListWidth) * factor));
+        payWidth = std::max(0, availableCartContent - cartListWidth);
+    } else {
+        const int desiredCartList = std::max(
+            minCartListWidth,
+            static_cast<int>(std::lround(static_cast<double>(availableCartContent) * 0.56)));
+        cartListWidth = std::clamp(desiredCartList, minCartListWidth, availableCartContent - minPaymentWidth);
+        payWidth = availableCartContent - cartListWidth;
+        if (payWidth < minPaymentWidth) {
+            payWidth = minPaymentWidth;
+            cartListWidth = availableCartContent - payWidth;
+        }
     }
+
     const int cartListLeft = cartLeft;
     const int cartListRight = cartListLeft + cartListWidth;
     const int payLeft = cartListRight + innerGap;
