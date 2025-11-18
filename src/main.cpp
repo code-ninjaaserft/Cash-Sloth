@@ -501,6 +501,14 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int columnStart = margin;
     const int cartLeft = columnStart + categoriesWidth + columnGap + productsWidth + columnGap;
     const int cartRight = cartLeft + cartWidth;
+    const int rightTotalWidth = std::max(0, cartRight - cartLeft);
+    const int innerGap = gap;
+    const int minCartListWidth = std::max(scaled(260), rightTotalWidth / 3);
+    const int cartListWidth = std::min(std::max(minCartListWidth, rightTotalWidth / 2), std::max(0, rightTotalWidth - innerGap - scaled(220)));
+    const int cartListLeft = cartLeft;
+    const int cartListRight = cartListLeft + cartListWidth;
+    const int payLeft = cartListRight + innerGap;
+    const int payRight = cartRight;
     const int contentHeight = std::max(0, contentBottom - contentTop);
 
     int cartBottom = contentTop + contentHeight;
@@ -516,17 +524,17 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     int actionBottom = cartBottom;
     consumeSpace(actionHeight);
-    rcAction = {cartLeft, cartBottom, cartRight, actionBottom};
+    rcAction = {payLeft, cartBottom, payRight, actionBottom};
     consumeSpace(titleSpace + columnGap);
 
     int creditBottom = cartBottom;
     consumeSpace(creditHeight);
-    rcCredit = {cartLeft, cartBottom, cartRight, creditBottom};
+    rcCredit = {payLeft, cartBottom, payRight, creditBottom};
     consumeSpace(titleSpace + columnGap);
 
     int summaryBottom = cartBottom;
     consumeSpace(summaryHeight);
-    rcSummary = {cartLeft, cartBottom, cartRight, summaryBottom};
+    rcSummary = {cartListLeft, cartBottom, cartListRight, summaryBottom};
     consumeSpace(columnGap);
 
     layout.rcCategoryPanel = {
@@ -544,14 +552,15 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     };
 
     layout.rcCartPanel = {
-        cartLeft,
+        cartListLeft,
         contentTop,
-        cartRight,
+        cartListRight,
         cartBottom
     };
 
     layout.rcCartSummary = rcSummary;
     layout.rcCreditPanel = rcCredit;
+    layout.rcActionPanel = rcAction;
 
     layout.rcQuickGrid = {
         layout.rcCreditPanel.left + creditPadding,
