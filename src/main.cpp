@@ -487,7 +487,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int remainingWidth = std::max(0, usableWidth - categoriesWidth);
 
     const double remainingUnit = remainingWidth / 5.0;
-    const int productsWidth = static_cast<int>(std::lround(remainingUnit * 3.8));
+    const int productsWidth = static_cast<int>(std::lround(remainingUnit * 3.5));
     const int cartWidth = std::max(0, remainingWidth - productsWidth);
 
     const int quickColumns = (std::max)(1, layout.metrics.quickColumns);
@@ -511,14 +511,14 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         + gap
         + layout.metrics.actionButtonHeight
         + actionPadding
-        + scaled(32);
+        + scaled(20);
 
     const int columnStart = margin;
     const int cartLeft = columnStart + categoriesWidth + columnGap + productsWidth + columnGap;
     const int cartRight = cartLeft + cartWidth;
     const int rightTotalWidth = std::max(0, cartRight - cartLeft);
     const int innerGap = gap;
-    const int minCartListWidth = std::max(scaled(200), rightTotalWidth / 3);
+    const int minCartListWidth = std::max(scaled(220), rightTotalWidth / 3);
     const int cartListWidth = std::min(std::max(minCartListWidth, rightTotalWidth / 2), rightTotalWidth - innerGap - scaled(260));
     const int payWidth = std::max(0, rightTotalWidth - innerGap - cartListWidth);
     const int cartListLeft = cartLeft;
