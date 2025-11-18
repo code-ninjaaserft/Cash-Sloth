@@ -52,6 +52,7 @@ namespace cashsloth {
 struct Layout {
     RECT rcClient{};
     RECT rcHeader{};
+    RECT rcLogo{};
     RECT rcFooter{};
 
     RECT rcCategoryPanel{};
@@ -450,10 +451,23 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     layout.rcHeader = {margin, margin, windowWidth - margin, margin + infoHeight};
     layout.rcFooter = {margin, windowHeight - margin - summaryHeight, windowWidth - margin, windowHeight - margin};
 
-    const int headerWidth = layout.rcHeader.right - layout.rcHeader.left;
+    const int logoWidth = scaled(48);
+    const int logoHeight = scaled(48);
+    const int logoPadding = gap;
+
+    layout.rcLogo = {
+        layout.rcHeader.left + logoPadding,
+        layout.rcHeader.top + logoPadding,
+        layout.rcHeader.left + logoPadding + logoWidth,
+        layout.rcHeader.top + logoPadding + logoHeight
+    };
+
+    const int headerInnerLeft = layout.rcLogo.right + gap;
+    const int headerInnerWidth = layout.rcHeader.right - headerInnerLeft;
+
     layout.badgeWidth = scaled(220);
     layout.infoLabelWidth = scaled(360);
-    layout.heroWidth = std::max(scaled(420), headerWidth - layout.badgeWidth - layout.infoLabelWidth - gap * 2);
+    layout.heroWidth = std::max(scaled(420), headerInnerWidth - layout.badgeWidth - layout.infoLabelWidth - gap * 2);
 
     layout.titleHeight = scaled(26);
     layout.titleGap = std::max(2, gap / 2);
@@ -473,7 +487,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int remainingWidth = std::max(0, usableWidth - categoriesWidth);
 
     const double remainingUnit = remainingWidth / 5.0;
-    const int productsWidth = static_cast<int>(std::lround(remainingUnit * 3.0));
+    const int productsWidth = static_cast<int>(std::lround(remainingUnit * 3.5));
     const int cartWidth = std::max(0, remainingWidth - productsWidth);
 
     const int quickColumns = (std::max)(1, layout.metrics.quickColumns);
@@ -496,19 +510,21 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         + layout.metrics.actionButtonHeight
         + gap
         + layout.metrics.actionButtonHeight
-        + actionPadding;
+        + actionPadding
+        + scaled(20);
 
     const int columnStart = margin;
     const int cartLeft = columnStart + categoriesWidth + columnGap + productsWidth + columnGap;
     const int cartRight = cartLeft + cartWidth;
     const int rightTotalWidth = std::max(0, cartRight - cartLeft);
     const int innerGap = gap;
-    const int minCartListWidth = std::max(scaled(260), rightTotalWidth / 3);
-    const int cartListWidth = std::min(std::max(minCartListWidth, rightTotalWidth / 2), std::max(0, rightTotalWidth - innerGap - scaled(220)));
+    const int minCartListWidth = std::max(scaled(220), rightTotalWidth / 3);
+    const int cartListWidth = std::min(std::max(minCartListWidth, rightTotalWidth / 2), rightTotalWidth - innerGap - scaled(260));
+    const int payWidth = std::max(0, rightTotalWidth - innerGap - cartListWidth);
     const int cartListLeft = cartLeft;
     const int cartListRight = cartListLeft + cartListWidth;
     const int payLeft = cartListRight + innerGap;
-    const int payRight = cartRight;
+    const int payRight = payLeft + payWidth;
     const int contentHeight = std::max(0, contentBottom - contentTop);
 
     int cartBottom = contentTop + contentHeight;
@@ -1165,7 +1181,7 @@ void CashSlothGUI::applyLayout() {
     const int headerHeight = layout_.rcHeader.bottom - layout_.rcHeader.top;
     const int headerPadding = layout_.metrics.gap;
     const int footerPadding = layout_.metrics.gap;
-    const int headerInnerLeft = layout_.rcHeader.left + headerPadding;
+    const int headerInnerLeft = layout_.rcLogo.right + headerPadding;
     const int headerInnerRight = layout_.rcHeader.right - headerPadding;
     const int headerInnerHeight = headerHeight - headerPadding * 2;
 
@@ -1357,6 +1373,8 @@ void CashSlothGUI::updateHeaderVisibility() {
 
 void CashSlothGUI::createInfoAndSummary() {
     const int headerHeight = layout_.rcHeader.bottom - layout_.rcHeader.top;
+    const int headerPadding = layout_.metrics.gap;
+    const int headerInnerLeft = layout_.rcLogo.right + headerPadding;
 
     const int heroWidth = layout_.heroWidth;
     heroTitleLabel_ = CreateWindowExW(
@@ -1364,7 +1382,7 @@ void CashSlothGUI::createInfoAndSummary() {
         L"STATIC",
         style_.hero.title.c_str(),
         WS_CHILD | WS_VISIBLE,
-        layout_.rcHeader.left,
+        headerInnerLeft,
         layout_.rcHeader.top,
         heroWidth,
         headerHeight / 2,
@@ -1379,7 +1397,7 @@ void CashSlothGUI::createInfoAndSummary() {
         L"STATIC",
         style_.hero.subtitle.c_str(),
         WS_CHILD | WS_VISIBLE,
-        layout_.rcHeader.left,
+        headerInnerLeft,
         layout_.rcHeader.top + headerHeight / 2 - scale(6),
         heroWidth,
         headerHeight / 2,
