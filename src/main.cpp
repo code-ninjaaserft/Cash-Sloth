@@ -598,7 +598,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int manualBlockHeight = manualLabelHeight + manualSpacing + manualEditHeight + manualSpacing + manualButtonHeight;
     const int manualTop = std::max(creditInnerTop, creditInnerBottom - manualBlockHeight);
 
-    const int quickCols = layout.metrics.quickColumns;
+    const int quickCols = std::max(1, layout.metrics.quickColumns);
     const int quickRows = (quickAmountCount == 0)
         ? 0
         : static_cast<int>((quickAmountCount + static_cast<std::size_t>(quickCols) - 1) / static_cast<std::size_t>(quickCols));
