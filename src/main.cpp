@@ -10,15 +10,12 @@ int main() {
 #else
 
 #define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
-#ifdef max
 #undef max
-#endif
-#ifdef min
 #undef min
-#endif
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -1283,7 +1280,7 @@ void CashSlothGUI::applyLayout() {
 
     const QuickGridSizing quickSizing = computeQuickGridSizing(layout_);
     const int quickTop = layout_.rcQuickGrid.top;
-    const int quickCols = quickSizing.columns;
+    const int quickCols = std::max(1, quickSizing.columns);
     const int quickGap = quickSizing.gap;
     const int quickWidth = quickSizing.buttonWidth;
     const int quickHeight = quickSizing.buttonHeight;
@@ -1548,7 +1545,7 @@ void CashSlothGUI::createCreditPanel() {
     quickAmountButtons_.clear();
 
     const QuickGridSizing quickSizing = computeQuickGridSizing(layout_);
-    const int quickCols = quickSizing.columns;
+    const int quickCols = std::max(1, quickSizing.columns);
     const int quickGap = quickSizing.gap;
     const int quickWidth = quickSizing.buttonWidth;
     const int quickHeight = quickSizing.buttonHeight;
