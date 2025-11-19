@@ -80,12 +80,20 @@ StyleSheet StyleSheet::load(const std::filesystem::path& baseDir) {
                 }
                 return static_cast<int>(std::round(it->second.asNumber()));
             };
+            sheet.metrics.baseWidth = intOr("base_width", sheet.metrics.baseWidth);
+            sheet.metrics.baseHeight = intOr("base_height", sheet.metrics.baseHeight);
             sheet.metrics.margin = intOr("margin", sheet.metrics.margin);
             sheet.metrics.infoHeight = intOr("info_height", sheet.metrics.infoHeight);
             sheet.metrics.summaryHeight = intOr("summary_height", sheet.metrics.summaryHeight);
             sheet.metrics.gap = intOr("gap", sheet.metrics.gap);
             sheet.metrics.leftColumnWidth = intOr("left_column_width", sheet.metrics.leftColumnWidth);
+            sheet.metrics.minLeftColumnWidth = intOr("min_left_column_width", sheet.metrics.minLeftColumnWidth);
+            sheet.metrics.maxLeftColumnWidth = intOr("max_left_column_width", sheet.metrics.maxLeftColumnWidth);
+            sheet.metrics.minProductsWidth = intOr("min_products_width", sheet.metrics.minProductsWidth);
+            sheet.metrics.minRightColumnWidth = intOr("min_right_column_width", sheet.metrics.minRightColumnWidth);
             sheet.metrics.rightColumnWidth = intOr("right_column_width", sheet.metrics.rightColumnWidth);
+            sheet.metrics.minCartListWidth = intOr("min_cart_list_width", sheet.metrics.minCartListWidth);
+            sheet.metrics.minPaymentWidth = intOr("min_payment_width", sheet.metrics.minPaymentWidth);
             sheet.metrics.categoryHeight = intOr("category_height", sheet.metrics.categoryHeight);
             sheet.metrics.categorySpacing = intOr("category_spacing", sheet.metrics.categorySpacing);
             sheet.metrics.productTileHeight = intOr("product_tile_height", sheet.metrics.productTileHeight);
@@ -95,6 +103,8 @@ StyleSheet StyleSheet::load(const std::filesystem::path& baseDir) {
             sheet.metrics.actionButtonHeight = intOr("action_button_height", sheet.metrics.actionButtonHeight);
             sheet.metrics.panelRadius = intOr("panel_radius", sheet.metrics.panelRadius);
             sheet.metrics.buttonRadius = intOr("button_radius", sheet.metrics.buttonRadius);
+            sheet.metrics.titleHeight = intOr("title_height", sheet.metrics.titleHeight);
+            sheet.metrics.titleGap = intOr("title_gap", sheet.metrics.titleGap);
         }
 
         const auto typographyIt = object.find("typography");

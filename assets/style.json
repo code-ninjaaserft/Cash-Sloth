@@ -20,12 +20,20 @@
     "action_base": "#17304A"
   },
   "metrics": {
+    "base_width": 1600,
+    "base_height": 900,
     "margin": 32,
     "info_height": 62,
     "summary_height": 58,
     "gap": 24,
     "left_column_width": 310,
+    "min_left_column_width": 260,
+    "max_left_column_width": 380,
+    "min_products_width": 560,
+    "min_right_column_width": 400,
     "right_column_width": 360,
+    "min_cart_list_width": 300,
+    "min_payment_width": 240,
     "category_height": 110,
     "category_spacing": 22,
     "product_tile_height": 180,
@@ -34,7 +42,9 @@
     "quick_columns": 3,
     "action_button_height": 82,
     "panel_radius": 32,
-    "button_radius": 24
+    "button_radius": 24,
+    "title_height": 32,
+    "title_gap": 16
   },
   "typography": {
     "font_family": "Segoe UI",
