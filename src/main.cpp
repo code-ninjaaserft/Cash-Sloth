@@ -12,13 +12,13 @@ int main() {
 #define NOMINMAX
 #include <windows.h>
 #include <windowsx.h>
+#include <commctrl.h>
 #ifdef max
 #undef max
 #endif
 #ifdef min
 #undef min
 #endif
-#include <commctrl.h>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
