@@ -1,5 +1,3 @@
-#include <windows.h>
-#include <windowsx.h>
 #if !defined(_WIN32)
 #include <cstdlib>
 #include <iostream>
@@ -1207,14 +1205,18 @@ void CashSlothGUI::applyLayout() {
     }
 
     const int titleInset = layout_.metrics.gap / 2;
-    auto sectionWidth = [&](const RECT& rc) {
+    auto sectionWidth = [&](const RECT& rc) -> int {
         return std::max(0, rc.right - rc.left - titleInset * 2);
     };
+    const int categoryWidth = sectionWidth(layout_.rcCategoryPanel);
+    const int productWidth = sectionWidth(layout_.rcProductPanel);
+    const int cartWidth = sectionWidth(layout_.rcCartPanel);
+    const int creditWidth = sectionWidth(layout_.rcCreditPanel);
 
-    ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left + titleInset, layout_.rcCategoryPanel.top + titleInset, sectionWidth(layout_.rcCategoryPanel));
-    ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left + titleInset, layout_.rcProductPanel.top + titleInset, sectionWidth(layout_.rcProductPanel));
-    ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left + titleInset, layout_.rcCartPanel.top + titleInset, sectionWidth(layout_.rcCartPanel));
-    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left + titleInset, layout_.rcCreditPanel.top + titleInset, sectionWidth(layout_.rcCreditPanel));
+    ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left + titleInset, layout_.rcCategoryPanel.top + titleInset, categoryWidth);
+    ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left + titleInset, layout_.rcProductPanel.top + titleInset, productWidth);
+    ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left + titleInset, layout_.rcCartPanel.top + titleInset, cartWidth);
+    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left + titleInset, layout_.rcCreditPanel.top + titleInset, creditWidth);
 
     if (summaryLabel_) {
         const int padding = layout_.metrics.gap;
