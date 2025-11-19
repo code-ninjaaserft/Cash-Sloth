@@ -75,13 +75,13 @@ struct QuickGridSizing {
 
 QuickGridSizing computeQuickGridSizing(const Layout& layout) {
     QuickGridSizing sizing{};
-    sizing.columns = std::max(1, layout.metrics.quickColumns);
+    sizing.columns = (std::max)(1, layout.metrics.quickColumns);
     sizing.gap = layout.metrics.gap;
     sizing.buttonHeight = layout.metrics.quickButtonHeight;
-    const int gridWidth = std::max(0, layout.rcQuickGrid.right - layout.rcQuickGrid.left);
+    const int gridWidth = (std::max)(0, layout.rcQuickGrid.right - layout.rcQuickGrid.left);
     const int totalGap = sizing.gap * (sizing.columns - 1);
-    const int usable = std::max(0, gridWidth - totalGap);
-    sizing.buttonWidth = std::max(1, usable / sizing.columns);
+    const int usable = (std::max)(0, gridWidth - totalGap);
+    sizing.buttonWidth = (std::max)(1, usable / sizing.columns);
     return sizing;
 }
 
@@ -389,7 +389,7 @@ public:
         }
         const double amount = creditHistory_.back();
         creditHistory_.pop_back();
-        credit_ = std::max(0.0, credit_ - amount);
+        credit_ = (std::max)(0.0, credit_ - amount);
         return amount;
     }
 
@@ -430,7 +430,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const double baseHeight = (metrics.baseHeight > 0) ? static_cast<double>(metrics.baseHeight) : 900.0;
     const double sx = static_cast<double>(windowWidth) / baseWidth;
     const double sy = static_cast<double>(windowHeight) / baseHeight;
-    layout.scale = std::clamp(std::min(sx, sy), 0.5, 2.0);
+    layout.scale = std::clamp((std::min)(sx, sy), 0.5, 2.0);
     layout.fontScale = layout.scale;
 
     auto scaled = [&](int value) {
@@ -460,36 +460,36 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     layout.metrics.buttonRadius = scaled(metrics.buttonRadius);
     layout.metrics.titleHeight = scaled(metrics.titleHeight);
     layout.metrics.titleGap = scaled(metrics.titleGap);
-    layout.metrics.quickColumns = std::max(1, metrics.quickColumns);
+    layout.metrics.quickColumns = (std::max)(1, metrics.quickColumns);
 
     layout.titleHeight = layout.metrics.titleHeight;
-    layout.titleGap = std::max(1, layout.metrics.titleGap);
+    layout.titleGap = (std::max)(1, layout.metrics.titleGap);
 
     const int margin = layout.metrics.margin;
     const int gap = layout.metrics.gap;
 
     const int headerHeight = layout.metrics.infoHeight + gap;
-    layout.rcHeader = {margin, margin, std::max(margin, windowWidth - margin), margin + headerHeight};
-    layout.rcHeader.bottom = std::min(layout.rcHeader.bottom, windowHeight - margin);
+    layout.rcHeader = {margin, margin, (std::max)(margin, windowWidth - margin), margin + headerHeight};
+    layout.rcHeader.bottom = (std::min)(layout.rcHeader.bottom, windowHeight - margin);
     if (layout.rcHeader.bottom < layout.rcHeader.top) {
         layout.rcHeader.bottom = layout.rcHeader.top;
     }
 
     const int contentLeft = margin;
     const int contentTop = layout.rcHeader.bottom + gap;
-    const int contentRight = std::max(contentLeft, windowWidth - margin);
-    const int contentBottom = std::max(contentTop, windowHeight - margin);
-    const int availableWidth = std::max(0, contentRight - contentLeft);
+    const int contentRight = (std::max)(contentLeft, windowWidth - margin);
+    const int contentBottom = (std::max)(contentTop, windowHeight - margin);
+    const int availableWidth = (std::max)(0, contentRight - contentLeft);
 
     const int leftMin = layout.metrics.minLeftColumnWidth;
     const int leftMax = layout.metrics.maxLeftColumnWidth;
     int leftWidth = std::clamp(layout.metrics.leftColumnWidth, leftMin, leftMax);
     const int totalColumnGaps = gap * 2;
     if (availableWidth < leftWidth + totalColumnGaps) {
-        leftWidth = std::max(0, availableWidth - totalColumnGaps);
+        leftWidth = (std::max)(0, availableWidth - totalColumnGaps);
     }
 
-    const int remainingWidth = std::max(0, availableWidth - leftWidth - totalColumnGaps);
+    const int remainingWidth = (std::max)(0, availableWidth - leftWidth - totalColumnGaps);
     int productsWidth = 0;
     int rightWidth = 0;
     const int minProducts = layout.metrics.minProductsWidth;
@@ -515,23 +515,23 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         if (productsWidth < minProducts) {
             const int deficit = minProducts - productsWidth;
             productsWidth = minProducts;
-            rightWidth = std::max(minRight, rightWidth - deficit);
+            rightWidth = (std::max)(minRight, rightWidth - deficit);
         }
     }
 
-    const int categoryRight = std::min(contentRight, contentLeft + leftWidth);
+    const int categoryRight = (std::min)(contentRight, contentLeft + leftWidth);
     layout.rcCategoryPanel = {contentLeft, contentTop, categoryRight, contentBottom};
 
-    const int productLeft = std::min(contentRight, layout.rcCategoryPanel.right + gap);
-    const int productRight = std::min(contentRight, productLeft + std::max(0, productsWidth));
+    const int productLeft = (std::min)(contentRight, layout.rcCategoryPanel.right + gap);
+    const int productRight = (std::min)(contentRight, productLeft + (std::max)(0, productsWidth));
     layout.rcProductPanel = {productLeft, contentTop, productRight, contentBottom};
 
-    const int rightLeft = std::min(contentRight, layout.rcProductPanel.right + gap);
-    const int rightRight = std::min(contentRight, rightLeft + std::max(0, rightWidth));
-    RECT rcRightColumn{rightLeft, contentTop, std::max(rightLeft, rightRight), contentBottom};
+    const int rightLeft = (std::min)(contentRight, layout.rcProductPanel.right + gap);
+    const int rightRight = (std::min)(contentRight, rightLeft + (std::max)(0, rightWidth));
+    RECT rcRightColumn{rightLeft, contentTop, (std::max)(rightLeft, rightRight), contentBottom};
 
     const int cartCreditGap = gap;
-    const int availableCartWidth = std::max(0, (rcRightColumn.right - rcRightColumn.left) - cartCreditGap);
+    const int availableCartWidth = (std::max)(0, (rcRightColumn.right - rcRightColumn.left) - cartCreditGap);
     const int minCartWidth = layout.metrics.minCartListWidth;
     const int minCreditWidth = layout.metrics.minPaymentWidth;
     int cartWidth = 0;
@@ -569,13 +569,13 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     const int actionHeight = layout.metrics.actionButtonHeight * 2 + gap * 3;
     const int summaryHeight = layout.metrics.summaryHeight;
 
-    const int actionTop = std::max(cartTop, cartBottom - actionHeight);
+    const int actionTop = (std::max)(cartTop, cartBottom - actionHeight);
     layout.rcActionPanel = {rcCartColumn.left, actionTop, rcCartColumn.right, cartBottom};
-    cartBottom = std::max(cartTop, actionTop - gap);
+    cartBottom = (std::max)(cartTop, actionTop - gap);
 
-    const int summaryTop = std::max(cartTop, cartBottom - summaryHeight);
+    const int summaryTop = (std::max)(cartTop, cartBottom - summaryHeight);
     layout.rcCartSummary = {rcCartColumn.left, summaryTop, rcCartColumn.right, cartBottom};
-    cartBottom = std::max(cartTop, summaryTop - gap);
+    cartBottom = (std::max)(cartTop, summaryTop - gap);
 
     if (cartBottom < cartTop) {
         cartBottom = cartTop;
@@ -584,18 +584,18 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     const int creditPadding = gap;
     const int creditInnerLeft = layout.rcCreditPanel.left + creditPadding;
-    const int creditInnerRight = std::max(creditInnerLeft, layout.rcCreditPanel.right - creditPadding);
+    const int creditInnerRight = (std::max)(creditInnerLeft, layout.rcCreditPanel.right - creditPadding);
     const int creditInnerTop = layout.rcCreditPanel.top + creditPadding;
-    const int creditInnerBottom = std::max(creditInnerTop, layout.rcCreditPanel.bottom - creditPadding);
+    const int creditInnerBottom = (std::max)(creditInnerTop, layout.rcCreditPanel.bottom - creditPadding);
 
     const int manualSpacing = gap;
     const int manualLabelHeight = layout.titleHeight;
     const int manualEditHeight = layout.metrics.quickButtonHeight;
     const int manualButtonHeight = layout.metrics.quickButtonHeight;
     const int manualBlockHeight = manualLabelHeight + manualSpacing + manualEditHeight + manualSpacing + manualButtonHeight;
-    const int manualTop = std::max(creditInnerTop, creditInnerBottom - manualBlockHeight);
+    const int manualTop = (std::max)(creditInnerTop, creditInnerBottom - manualBlockHeight);
 
-    const int quickCols = std::max(1, layout.metrics.quickColumns);
+    const int quickCols = (std::max)(1, layout.metrics.quickColumns);
     const int quickRows = (quickAmountCount == 0)
         ? 0
         : static_cast<int>((quickAmountCount + static_cast<std::size_t>(quickCols) - 1) / static_cast<std::size_t>(quickCols));
@@ -605,12 +605,12 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     const int quickTitleTop = creditInnerTop;
     const int quickTop = quickTitleTop + layout.titleHeight + layout.titleGap;
-    const int quickBottomLimit = std::max(quickTop, manualTop - manualSpacing);
-    const int quickBottom = std::min(quickTop + quickGridHeight, quickBottomLimit);
-    layout.rcQuickGrid = {creditInnerLeft, quickTop, creditInnerRight, std::max(quickTop, quickBottom)};
+    const int quickBottomLimit = (std::max)(quickTop, manualTop - manualSpacing);
+    const int quickBottom = (std::min)(quickTop + quickGridHeight, quickBottomLimit);
+    layout.rcQuickGrid = {creditInnerLeft, quickTop, creditInnerRight, (std::max)(quickTop, quickBottom)};
 
     const int footerHeight = layout.metrics.quickButtonHeight + gap;
-    const int footerTop = std::max(layout.rcCategoryPanel.top, layout.rcCategoryPanel.bottom - footerHeight);
+    const int footerTop = (std::max)(layout.rcCategoryPanel.top, layout.rcCategoryPanel.bottom - footerHeight);
     layout.rcCategoryFooter = {layout.rcCategoryPanel.left, footerTop, layout.rcCategoryPanel.right, layout.rcCategoryPanel.bottom};
 
     return layout;
@@ -1119,8 +1119,8 @@ LRESULT CashSlothGUI::onNcHitTest(LPARAM lParam) {
 
     const LONG frameX = GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
     const LONG frameY = GetSystemMetrics(SM_CYSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
-    const LONG scaledBorderX = std::max<LONG>(frameX, static_cast<LONG>(std::lround(10.0 * layout_.scale)));
-    const LONG scaledBorderY = std::max<LONG>(frameY, static_cast<LONG>(std::lround(10.0 * layout_.scale)));
+    const LONG scaledBorderX = (std::max)(frameX, static_cast<LONG>(std::lround(10.0 * layout_.scale)));
+    const LONG scaledBorderY = (std::max)(frameY, static_cast<LONG>(std::lround(10.0 * layout_.scale)));
 
     const bool onLeft = pt.x < windowRect.left + scaledBorderX;
     const bool onRight = pt.x >= windowRect.right - scaledBorderX;
@@ -1175,7 +1175,7 @@ void CashSlothGUI::refreshFonts() {
     tileFont_ = createFont(style_.typography.tile);
     buttonFont_ = createFont(style_.typography.button);
     smallFont_ = createFont(style_.typography.body);
-    panelBorderPen_ = CreatePen(PS_SOLID, std::max(1, scale(1)), style_.palette.panelBorder);
+    panelBorderPen_ = CreatePen(PS_SOLID, (std::max)(1, scale(1)), style_.palette.panelBorder);
 
     currentFontScale_ = newScale;
 }
@@ -1203,7 +1203,7 @@ void CashSlothGUI::applyLayout() {
 
     const int titleInset = layout_.metrics.gap / 2;
     auto sectionWidth = [&](const RECT& rc) -> int {
-        return std::max(0, rc.right - rc.left - titleInset * 2);
+        return (std::max)(0, rc.right - rc.left - titleInset * 2);
     };
     const int categoryWidth = sectionWidth(layout_.rcCategoryPanel);
     const int productWidth = sectionWidth(layout_.rcProductPanel);
@@ -1221,8 +1221,8 @@ void CashSlothGUI::applyLayout() {
             summaryLabel_,
             layout_.rcCartSummary.left + padding,
             layout_.rcCartSummary.top + padding,
-            std::max(0, layout_.rcCartSummary.right - layout_.rcCartSummary.left - padding * 2),
-            std::max(0, layout_.rcCartSummary.bottom - layout_.rcCartSummary.top - padding * 2),
+            (std::max)(0, layout_.rcCartSummary.right - layout_.rcCartSummary.left - padding * 2),
+            (std::max)(0, layout_.rcCartSummary.bottom - layout_.rcCartSummary.top - padding * 2),
             FALSE);
         SendMessageW(summaryLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
     }
@@ -1230,12 +1230,12 @@ void CashSlothGUI::applyLayout() {
     if (cartList_) {
         const int padding = layout_.metrics.gap;
         const int listTop = layout_.rcCartPanel.top + layout_.titleHeight + layout_.titleGap + padding;
-        const int listHeight = std::max(0, layout_.rcCartPanel.bottom - listTop - padding);
+        const int listHeight = (std::max)(0, layout_.rcCartPanel.bottom - listTop - padding);
         MoveWindow(
             cartList_,
             layout_.rcCartPanel.left + padding,
             listTop,
-            std::max(0, layout_.rcCartPanel.right - layout_.rcCartPanel.left - padding * 2),
+            (std::max)(0, layout_.rcCartPanel.right - layout_.rcCartPanel.left - padding * 2),
             listHeight,
             FALSE);
         SendMessageW(cartList_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
@@ -1244,19 +1244,19 @@ void CashSlothGUI::applyLayout() {
     const int padding = layout_.metrics.gap;
     const int creditInnerLeft = layout_.rcCreditPanel.left + padding;
     const int creditInnerRight = layout_.rcCreditPanel.right - padding;
-    const int creditInnerWidth = std::max(0, creditInnerRight - creditInnerLeft);
+    const int creditInnerWidth = (std::max)(0, creditInnerRight - creditInnerLeft);
     const int creditInnerTop = layout_.rcCreditPanel.top + padding;
-    const int creditInnerBottom = std::max(creditInnerTop, layout_.rcCreditPanel.bottom - padding);
+    const int creditInnerBottom = (std::max)(creditInnerTop, layout_.rcCreditPanel.bottom - padding);
     const int manualSpacing = layout_.metrics.gap;
     const int labelHeight = layout_.titleHeight;
     const int editHeight = layout_.metrics.quickButtonHeight;
     const int buttonHeight = layout_.metrics.quickButtonHeight;
     const int manualBlockHeight = labelHeight + manualSpacing + editHeight + manualSpacing + buttonHeight;
-    const int manualBlockTop = std::max(creditInnerTop, creditInnerBottom - manualBlockHeight);
+    const int manualBlockTop = (std::max)(creditInnerTop, creditInnerBottom - manualBlockHeight);
     const int labelTop = manualBlockTop;
     const int editTop = labelTop + labelHeight + manualSpacing;
     const int buttonTop = editTop + editHeight + manualSpacing;
-    const int halfWidth = std::max(1, (creditInnerWidth - manualSpacing) / 2);
+    const int halfWidth = (std::max)(1, (creditInnerWidth - manualSpacing) / 2);
 
     if (manualLabel_) {
         MoveWindow(manualLabel_, creditInnerLeft, labelTop, creditInnerWidth, labelHeight, FALSE);
@@ -1275,12 +1275,12 @@ void CashSlothGUI::applyLayout() {
         SendMessageW(undoCreditButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
     }
 
-    const int quickTitleTop = std::max(creditInnerTop, layout_.rcQuickGrid.top - layout_.titleHeight - layout_.titleGap);
+    const int quickTitleTop = (std::max)(creditInnerTop, layout_.rcQuickGrid.top - layout_.titleHeight - layout_.titleGap);
     ensureSectionTitle(quickTitle_, L"Schnellbeträge", creditInnerLeft, quickTitleTop, creditInnerWidth);
 
     const QuickGridSizing quickSizing = computeQuickGridSizing(layout_);
     const int quickTop = layout_.rcQuickGrid.top;
-    const int quickCols = std::max(1, quickSizing.columns);
+    const int quickCols = (std::max)(1, quickSizing.columns);
     const int quickGap = quickSizing.gap;
     const int quickWidth = quickSizing.buttonWidth;
     const int quickHeight = quickSizing.buttonHeight;
@@ -1411,7 +1411,7 @@ void CashSlothGUI::createCategoryFooter() {
 }
 
 void CashSlothGUI::createCartArea() {
-    const int titleInset = std::max(scale(6), layout_.metrics.gap / 2);
+    const int titleInset = (std::max)(scale(6), layout_.metrics.gap / 2);
     ensureSectionTitle(cartTitle_, L"Warenkorb", layout_.rcCartPanel.left + titleInset, layout_.rcCartPanel.top + titleInset, layout_.rcCartPanel.right - layout_.rcCartPanel.left - titleInset * 2);
 
     cartList_ = CreateWindowExW(
@@ -1436,26 +1436,26 @@ void CashSlothGUI::createCreditPanel() {
     }
 
     const int titleInset = layout_.metrics.gap / 2;
-    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left + titleInset, layout_.rcCreditPanel.top + titleInset, std::max(0, layout_.rcCreditPanel.right - layout_.rcCreditPanel.left - titleInset * 2));
+    ensureSectionTitle(creditTitle_, L"Kundengeld", layout_.rcCreditPanel.left + titleInset, layout_.rcCreditPanel.top + titleInset, (std::max)(0, layout_.rcCreditPanel.right - layout_.rcCreditPanel.left - titleInset * 2));
 
     const int padding = layout_.metrics.gap;
     const int creditInnerLeft = layout_.rcCreditPanel.left + padding;
     const int creditInnerRight = layout_.rcCreditPanel.right - padding;
-    const int creditInnerWidth = std::max(0, creditInnerRight - creditInnerLeft);
+    const int creditInnerWidth = (std::max)(0, creditInnerRight - creditInnerLeft);
     const int creditInnerTop = layout_.rcCreditPanel.top + padding;
-    const int creditInnerBottom = std::max(creditInnerTop, layout_.rcCreditPanel.bottom - padding);
+    const int creditInnerBottom = (std::max)(creditInnerTop, layout_.rcCreditPanel.bottom - padding);
     const int manualSpacing = layout_.metrics.gap;
     const int labelHeight = layout_.titleHeight;
     const int editHeight = layout_.metrics.quickButtonHeight;
     const int buttonHeight = layout_.metrics.quickButtonHeight;
     const int manualBlockHeight = labelHeight + manualSpacing + editHeight + manualSpacing + buttonHeight;
-    const int manualBlockTop = std::max(creditInnerTop, creditInnerBottom - manualBlockHeight);
+    const int manualBlockTop = (std::max)(creditInnerTop, creditInnerBottom - manualBlockHeight);
     const int labelTop = manualBlockTop;
     const int editTop = labelTop + labelHeight + manualSpacing;
     const int buttonTop = editTop + editHeight + manualSpacing;
-    const int halfWidth = std::max(1, (creditInnerWidth - manualSpacing) / 2);
+    const int halfWidth = (std::max)(1, (creditInnerWidth - manualSpacing) / 2);
 
-    const int quickTitleTop = std::max(creditInnerTop, layout_.rcQuickGrid.top - layout_.titleHeight - layout_.titleGap);
+    const int quickTitleTop = (std::max)(creditInnerTop, layout_.rcQuickGrid.top - layout_.titleHeight - layout_.titleGap);
     ensureSectionTitle(quickTitle_, L"Schnellbeträge", creditInnerLeft, quickTitleTop, creditInnerWidth);
 
     if (!manualLabel_) {
@@ -1545,7 +1545,7 @@ void CashSlothGUI::createCreditPanel() {
     quickAmountButtons_.clear();
 
     const QuickGridSizing quickSizing = computeQuickGridSizing(layout_);
-    const int quickCols = std::max(1, quickSizing.columns);
+    const int quickCols = (std::max)(1, quickSizing.columns);
     const int quickGap = quickSizing.gap;
     const int quickWidth = quickSizing.buttonWidth;
     const int quickHeight = quickSizing.buttonHeight;
@@ -1708,7 +1708,7 @@ void CashSlothGUI::buildCategoryButtons() {
     const auto& categories = catalogue_.categories();
     categoryOrder_.reserve(categories.size());
 
-    const int titleInset = std::max(scale(6), layout_.metrics.gap / 2);
+    const int titleInset = (std::max)(scale(6), layout_.metrics.gap / 2);
     ensureSectionTitle(categoryTitle_, L"Kategorien", layout_.rcCategoryPanel.left + titleInset, layout_.rcCategoryPanel.top + titleInset, layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left - titleInset * 2);
     ensureSectionTitle(productTitle_, L"Produkte", layout_.rcProductPanel.left + titleInset, layout_.rcProductPanel.top + titleInset, layout_.rcProductPanel.right - layout_.rcProductPanel.left - titleInset * 2);
 
@@ -1776,7 +1776,7 @@ void CashSlothGUI::rebuildProductButtons() {
         }
         --columns;
     }
-    columns = std::max(1, columns);
+    columns = (std::max)(1, columns);
     const int tileWidth = std::clamp((availableWidth - tilePadding * (columns + 1)) / columns, minTileWidth, maxTileWidth);
     int tileHeight = static_cast<int>(std::round(static_cast<double>(tileWidth) * 0.75));
     tileHeight = std::clamp(tileHeight, scale(120), scale(200));
@@ -2160,7 +2160,7 @@ void CashSlothGUI::updateAnimation() {
     accentPulse_ = std::clamp(pulse, 0.0, 1.0);
 
     RECT accentArea{
-        std::max(layout_.rcClient.left, layout_.rcClient.right - scale(560)),
+        (std::max)(layout_.rcClient.left, layout_.rcClient.right - scale(560)),
         layout_.rcClient.top,
         layout_.rcClient.right,
         layout_.rcClient.top + scale(360)
