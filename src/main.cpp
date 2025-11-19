@@ -721,6 +721,7 @@ private:
     Layout layout_{};
 
     HWND summaryLabel_ = nullptr;
+    HWND infoLabel_ = nullptr;
     HWND categoryTitle_ = nullptr;
     HWND productTitle_ = nullptr;
     HWND cartTitle_ = nullptr;
