@@ -43,12 +43,20 @@ struct StyleSheet {
     } palette;
 
     struct Metrics {
+        int baseWidth = 1600;
+        int baseHeight = 900;
         int margin = 26;
         int infoHeight = 60;
         int summaryHeight = 52;
         int gap = 20;
-        int leftColumnWidth = 280;
+        int leftColumnWidth = 230;
+        int minLeftColumnWidth = 210;
+        int maxLeftColumnWidth = 260;
+        int minProductsWidth = 520;
+        int minRightColumnWidth = 380;
         int rightColumnWidth = 340;
+        int minCartListWidth = 260;
+        int minPaymentWidth = 220;
         int categoryHeight = 86;
         int categorySpacing = 14;
         int productTileHeight = 148;
@@ -58,6 +66,8 @@ struct StyleSheet {
         int actionButtonHeight = 66;
         int panelRadius = 30;
         int buttonRadius = 22;
+        int titleHeight = 26;
+        int titleGap = 12;
     } metrics;
 
     struct FontSpec {
