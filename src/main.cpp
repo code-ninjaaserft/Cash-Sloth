@@ -1380,20 +1380,52 @@ void CashSlothGUI::updateHeaderVisibility() {
 }
 
 void CashSlothGUI::createInfoAndSummary() {
+    const int padding = layout_.metrics.gap;
+    const int totalWidth =
+        layout_.rcCartSummary.right - layout_.rcCartSummary.left - padding * 2;
+    const int totalHeight =
+        layout_.rcCartSummary.bottom - layout_.rcCartSummary.top - padding * 2;
+
+    // ca. 2/3 für Summary, 1/3 für Info
+    const int summaryHeight = (totalHeight * 2) / 3;
+    const int infoHeight = totalHeight - summaryHeight;
+
+    const int left = layout_.rcCartSummary.left + padding;
+    int top = layout_.rcCartSummary.top + padding;
+
+    // Summary (Summe / Kundengeld / Rückgeld)
     summaryLabel_ = CreateWindowExW(
         0,
         L"STATIC",
         L"",
         WS_CHILD | WS_VISIBLE,
-        layout_.rcCartSummary.left,
-        layout_.rcCartSummary.top,
-        layout_.rcCartSummary.right - layout_.rcCartSummary.left,
-        layout_.rcCartSummary.bottom - layout_.rcCartSummary.top,
+        left,
+        top,
+        totalWidth,
+        summaryHeight,
         window_,
         nullptr,
         instance_,
         nullptr);
     SendMessageW(summaryLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
+
+    // Info-Zeile direkt darunter
+    top += summaryHeight;
+
+    infoLabel_ = CreateWindowExW(
+        0,
+        L"STATIC",
+        L"",
+        WS_CHILD | WS_VISIBLE,
+        left,
+        top,
+        totalWidth,
+        infoHeight,
+        window_,
+        nullptr,
+        instance_,
+        nullptr);
+    SendMessageW(infoLabel_, WM_SETFONT, reinterpret_cast<WPARAM>(smallFont_), FALSE);
 }
 
 void CashSlothGUI::createCategoryFooter() {
