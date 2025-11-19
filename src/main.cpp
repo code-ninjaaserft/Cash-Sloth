@@ -1330,7 +1330,7 @@ void CashSlothGUI::applyLayout() {
     const int categoryButtonHeight = layout_.metrics.categoryHeight;
     const int categorySpacing = layout_.metrics.categorySpacing;
     const int categoryLeft = layout_.rcCategoryPanel.left + categoryPadding;
-    const int categoryWidth = (std::max)(
+    const int categoryButtonWidth = (std::max)(
         0,
         layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left - categoryPadding * 2);
     const int categoryBottomLimit = (std::max)(
@@ -1345,7 +1345,7 @@ void CashSlothGUI::applyLayout() {
         if (categoryTop + categoryButtonHeight > categoryBottomLimit) {
             ShowWindow(button, SW_HIDE);
         } else {
-            MoveWindow(button, categoryLeft, categoryTop, categoryWidth, categoryButtonHeight, FALSE);
+            MoveWindow(button, categoryLeft, categoryTop, categoryButtonWidth, categoryButtonHeight, FALSE);
             SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
             ShowWindow(button, SW_SHOWNOACTIVATE);
         }
