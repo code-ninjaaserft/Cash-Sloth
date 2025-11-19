@@ -1325,6 +1325,96 @@ void CashSlothGUI::applyLayout() {
             SendMessageW(quickAmountButtons_[i], WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
         }
     }
+
+    const int categoryPadding = layout_.metrics.gap;
+    const int categoryButtonHeight = layout_.metrics.categoryHeight;
+    const int categorySpacing = layout_.metrics.categorySpacing;
+    const int categoryLeft = layout_.rcCategoryPanel.left + categoryPadding;
+    const int categoryWidth = (std::max)(
+        0,
+        layout_.rcCategoryPanel.right - layout_.rcCategoryPanel.left - categoryPadding * 2);
+    const int categoryBottomLimit = (std::max)(
+        layout_.rcCategoryPanel.top + categoryPadding,
+        layout_.rcCategoryFooter.top - categoryPadding);
+    int categoryTop = layout_.rcCategoryPanel.top + categoryPadding;
+    for (HWND button : categoryButtons_) {
+        if (!button) {
+            categoryTop += categoryButtonHeight + categorySpacing;
+            continue;
+        }
+        if (categoryTop + categoryButtonHeight > categoryBottomLimit) {
+            ShowWindow(button, SW_HIDE);
+        } else {
+            MoveWindow(button, categoryLeft, categoryTop, categoryWidth, categoryButtonHeight, FALSE);
+            SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
+            ShowWindow(button, SW_SHOWNOACTIVATE);
+        }
+        categoryTop += categoryButtonHeight + categorySpacing;
+    }
+
+    if (!productButtons_.empty()) {
+        const int tilePadding = layout_.metrics.tileGap;
+        const int availableWidth = (std::max)(
+            0,
+            layout_.rcProductPanel.right - layout_.rcProductPanel.left - tilePadding * 2);
+        const int minTileWidth = scale(160);
+        const int maxTileWidth = scale(240);
+        int columns = (availableWidth > 0) ? 3 : 1;
+        while (columns > 1) {
+            const int testWidth = (availableWidth - tilePadding * (columns + 1)) / columns;
+            if (testWidth >= minTileWidth) {
+                break;
+            }
+            --columns;
+        }
+        columns = (std::max)(1, columns);
+        const int computedWidth = (columns > 0)
+            ? (availableWidth - tilePadding * (columns + 1)) / columns
+            : 0;
+        const int tileWidth = std::clamp(computedWidth, minTileWidth, maxTileWidth);
+        int tileHeight = static_cast<int>(std::round(static_cast<double>(tileWidth) * 0.75));
+        tileHeight = std::clamp(tileHeight, scale(120), scale(200));
+        const int startX = layout_.rcProductPanel.left + tilePadding;
+        const int startY = layout_.rcProductPanel.top + tilePadding;
+
+        for (std::size_t i = 0; i < productButtons_.size(); ++i) {
+            HWND button = productButtons_[i];
+            if (!button) {
+                continue;
+            }
+            const int row = static_cast<int>(i / static_cast<std::size_t>(columns));
+            const int col = static_cast<int>(i % static_cast<std::size_t>(columns));
+            const int x = startX + col * (tileWidth + tilePadding);
+            const int y = startY + row * (tileHeight + tilePadding);
+            MoveWindow(button, x, y, tileWidth, tileHeight, FALSE);
+            SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(tileFont_), FALSE);
+        }
+    }
+
+    const int actionPadding = layout_.metrics.gap;
+    const int actionWidth = (std::max)(
+        0,
+        layout_.rcActionPanel.right - layout_.rcActionPanel.left - actionPadding * 2);
+    const int actionLeft = layout_.rcActionPanel.left + actionPadding;
+    const int actionTop = layout_.rcActionPanel.top + actionPadding;
+    const int actionGap = layout_.metrics.gap;
+    const int actionButtonHeight = layout_.metrics.actionButtonHeight;
+    const int actionHalfWidth = (std::max)(0, (actionWidth - actionGap) / 2);
+
+    if (removeButton_) {
+        MoveWindow(removeButton_, actionLeft, actionTop, actionHalfWidth, actionButtonHeight, FALSE);
+        SendMessageW(removeButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
+    }
+    if (clearButton_) {
+        const int clearX = actionLeft + actionHalfWidth + actionGap;
+        MoveWindow(clearButton_, clearX, actionTop, actionHalfWidth, actionButtonHeight, FALSE);
+        SendMessageW(clearButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
+    }
+    if (payButton_) {
+        const int payTop = actionTop + actionButtonHeight + actionGap;
+        MoveWindow(payButton_, actionLeft, payTop, actionWidth, actionButtonHeight, FALSE);
+        SendMessageW(payButton_, WM_SETFONT, reinterpret_cast<WPARAM>(buttonFont_), FALSE);
+    }
 }
 
 void CashSlothGUI::createInfoAndSummary() {
