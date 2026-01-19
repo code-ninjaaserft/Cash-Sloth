@@ -38,6 +38,7 @@ int main() {
 
 #include "cash_sloth_json.h"
 #include "cash_sloth_style.h"
+#include "cash_sloth_diagnostics.h"
 #include "cash_sloth_utils.h"
 
 #if defined(_MSC_VER)
@@ -107,6 +108,8 @@ public:
         } catch (const std::exception& exc) {
             std::cerr << "Warnung: Katalog konnte nicht aus \"" << path << "\" gelesen werden: "
                       << exc.what() << '\n';
+            DiagnosticsMonitor::instance().recordWarning(
+                std::string("Katalog konnte nicht geladen werden: ") + path.string() + " | " + exc.what());
             return false;
         }
     }
@@ -817,6 +820,8 @@ int CashSlothGUI::run(int nCmdShow) {
         std::wstringstream stream;
         stream << L"Fensterklasse konnte nicht registriert werden.\nFehler " << error << L":\n"
                << formatWindowsErrorMessage(error);
+        DiagnosticsMonitor::instance().recordError(
+            "Fensterklasse konnte nicht registriert werden. Fehler " + std::to_string(error));
         MessageBoxW(nullptr, stream.str().c_str(), kWindowTitle, MB_ICONERROR | MB_OK);
         return EXIT_FAILURE;
     }
@@ -840,6 +845,8 @@ int CashSlothGUI::run(int nCmdShow) {
         std::wstringstream stream;
         stream << L"Fenster konnte nicht erstellt werden.\nFehler " << error << L":\n"
                << formatWindowsErrorMessage(error);
+        DiagnosticsMonitor::instance().recordError(
+            "Fenster konnte nicht erstellt werden. Fehler " + std::to_string(error));
         MessageBoxW(nullptr, stream.str().c_str(), kWindowTitle, MB_ICONERROR | MB_OK);
         return EXIT_FAILURE;
     }
@@ -925,6 +932,7 @@ LRESULT CALLBACK CashSlothGUI::WindowProc(HWND hwnd, UINT message, WPARAM wParam
     }
 }
 void CashSlothGUI::onCreate() {
+    DiagnosticsMonitor::ScopedTimer timer("onCreate", 60.0);
     initDpiAndResources();
     calculateLayout();
     createInfoAndSummary();
@@ -951,6 +959,7 @@ void CashSlothGUI::onDestroy() {
         animationTimerActive_ = false;
     }
     releaseGdiResources();
+    DiagnosticsMonitor::instance().flushSummary();
     PostQuitMessage(0);
 }
 
@@ -1076,6 +1085,7 @@ HBRUSH CashSlothGUI::onCtlColorPanel(HDC dc) {
 void CashSlothGUI::onPaint() {
     PAINTSTRUCT ps;
     HDC dc = BeginPaint(window_, &ps);
+    DiagnosticsMonitor::ScopedTimer timer("onPaint", 16.0);
 
     if (minimalMode_) {
         FillRect(dc, &ps.rcPaint, GetSysColorBrush(COLOR_WINDOW));
@@ -1185,6 +1195,7 @@ void CashSlothGUI::refreshFonts() {
 }
 
 void CashSlothGUI::calculateLayout() {
+    DiagnosticsMonitor::ScopedTimer timer("calculateLayout", 8.0);
     RECT client{};
     GetClientRect(window_, &client);
     const int width = client.right - client.left;
@@ -1718,6 +1729,7 @@ void CashSlothGUI::toggleFullscreen() {
 }
 
 void CashSlothGUI::loadCatalogue() {
+    DiagnosticsMonitor::ScopedTimer timer("loadCatalogue", 50.0);
     const std::vector<std::filesystem::path> candidates = {
         exeDirectory_ / "assets" / "cash_sloth_catalog.json",
         exeDirectory_ / "assets" / "catalog.json",
@@ -1734,6 +1746,8 @@ void CashSlothGUI::loadCatalogue() {
         if (catalogue_.loadFromFile(candidate)) {
             infoText_ = std::wstring(L"Katalog geladen aus: ") + candidate.wstring();
             catalogueErrorMessage_.clear();
+            DiagnosticsMonitor::instance().recordInfo(
+                std::string("Katalog geladen aus: ") + candidate.string());
             loaded = true;
             break;
         }
@@ -1742,12 +1756,15 @@ void CashSlothGUI::loadCatalogue() {
         catalogue_.loadDefault();
         infoText_ = L"Standardkatalog geladen (assets/cash_sloth_catalog.json nicht gefunden).";
         catalogueErrorMessage_ = L"Produktkatalog konnte nicht geladen werden. Es wird ein Standardkatalog verwendet.";
+        DiagnosticsMonitor::instance().recordWarning(
+            "Produktkatalog konnte nicht geladen werden, Standardkatalog wird verwendet.");
     }
 
     updateHeaderVisibility();
 }
 
 void CashSlothGUI::buildCategoryButtons() {
+    DiagnosticsMonitor::ScopedTimer timer("buildCategoryButtons", 12.0);
     for (HWND button : categoryButtons_) {
         DestroyWindow(button);
     }
@@ -1800,6 +1817,7 @@ void CashSlothGUI::buildCategoryButtons() {
 }
 
 void CashSlothGUI::rebuildProductButtons() {
+    DiagnosticsMonitor::ScopedTimer timer("rebuildProductButtons", 14.0);
     for (HWND button : productButtons_) {
         DestroyWindow(button);
     }
@@ -1866,6 +1884,7 @@ void CashSlothGUI::updateCategoryHighlight() {
 }
 
 void CashSlothGUI::refreshCart() {
+    DiagnosticsMonitor::ScopedTimer timer("refreshCart", 6.0);
     if (minimalMode_) {
         return;
     }

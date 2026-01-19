@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "cash_sloth_utils.h"
+#include "cash_sloth_diagnostics.h"
 
 namespace cashsloth {
 
@@ -175,6 +176,8 @@ StyleSheet StyleSheet::load(const std::filesystem::path& baseDir) {
         }
     } catch (const std::exception& exc) {
         std::cerr << "Warnung: Stylesheet konnte nicht geladen werden: " << exc.what() << '\n';
+        DiagnosticsMonitor::instance().recordWarning(
+            std::string("Stylesheet konnte nicht geladen werden: ") + exc.what());
     }
     return sheet;
 }
@@ -291,4 +294,3 @@ TRIVERTEX makeVertex(LONG x, LONG y, COLORREF color) {
 }
 
 } // namespace cashsloth
-
