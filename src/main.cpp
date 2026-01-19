@@ -40,6 +40,12 @@ int main() {
 #include "cash_sloth_style.h"
 #include "cash_sloth_diagnostics.h"
 #include "cash_sloth_utils.h"
+#include "ui/layout/hbox.h"
+#include "ui/layout/layout_engine.h"
+#include "ui/layout/layout_types.h"
+#include "ui/layout/leaf_box.h"
+#include "ui/layout/spacer.h"
+#include "ui/layout/vbox.h"
 
 #if defined(_MSC_VER)
 #pragma comment(lib, "Msimg32.lib")
@@ -535,9 +541,6 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         + actionPadding
         + scaled(20);
 
-    const int columnStart = contentLeft;
-    const int cartLeft = columnStart + fixedCategoryWidth + columnGap + productsWidth + columnGap;
-    const int cartRight = cartLeft + cartWidth;
     const int innerGap = gap;
     const int minCartListWidth = layout.metrics.minCartListWidth;
     const int minPaymentWidth = layout.metrics.minPaymentWidth;
@@ -567,40 +570,83 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         cartListWidth = availableCartContent - payWidth;
     }
 
-    const int cartListLeft = cartLeft;
-    const int cartListRight = cartListLeft + cartListWidth;
-    const int payLeft = cartListRight + innerGap;
-    const int payRight = payLeft + payWidth;
+    ui::layout::HBox root;
+    root.SetGap(columnGap);
+
+    auto category_panel = std::make_unique<ui::layout::LeafBox>();
+    category_panel->SetId("category_panel");
+    category_panel->SetPreferredSize(ui::layout::Size{fixedCategoryWidth, 0});
+    category_panel->SetMinSize(ui::layout::Size{fixedCategoryWidth, 0});
+
+    auto product_panel = std::make_unique<ui::layout::LeafBox>();
+    product_panel->SetId("product_panel");
+    product_panel->SetPreferredSize(ui::layout::Size{productsWidth, 0});
+    product_panel->SetMinSize(ui::layout::Size{productsWidth, 0});
+
+    auto cart_column = std::make_unique<ui::layout::VBox>();
+    cart_column->SetGap(columnGap);
+    cart_column->SetMinSize(ui::layout::Size{cartListWidth, 0});
+
+    auto cart_panel = std::make_unique<ui::layout::Spacer>();
+    cart_panel->SetId("cart_panel");
+    cart_panel->SetMinSize(ui::layout::Size{cartListWidth, 0});
+
+    auto cart_summary = std::make_unique<ui::layout::LeafBox>();
+    cart_summary->SetId("cart_summary");
+    cart_summary->SetPreferredSize(ui::layout::Size{cartListWidth, summaryHeight});
+    cart_summary->SetMinSize(ui::layout::Size{cartListWidth, summaryHeight});
+
+    auto action_panel = std::make_unique<ui::layout::LeafBox>();
+    action_panel->SetId("action_panel");
+    action_panel->SetPreferredSize(ui::layout::Size{cartListWidth, actionHeight});
+    action_panel->SetMinSize(ui::layout::Size{cartListWidth, actionHeight});
+
+    ui::layout::Spacer* cart_panel_ptr = cart_panel.get();
+    ui::layout::LeafBox* cart_summary_ptr = cart_summary.get();
+    ui::layout::LeafBox* action_panel_ptr = action_panel.get();
+    cart_column->AddChild(std::move(cart_panel));
+    cart_column->AddChild(std::move(cart_summary));
+    cart_column->AddChild(std::move(action_panel));
+
+    auto credit_panel = std::make_unique<ui::layout::LeafBox>();
+    credit_panel->SetId("credit_panel");
+    credit_panel->SetPreferredSize(ui::layout::Size{payWidth, 0});
+    credit_panel->SetMinSize(ui::layout::Size{payWidth, 0});
+
+    ui::layout::LeafBox* category_panel_ptr = category_panel.get();
+    ui::layout::LeafBox* product_panel_ptr = product_panel.get();
+    ui::layout::LeafBox* credit_panel_ptr = credit_panel.get();
+
+    auto right_column = std::make_unique<ui::layout::HBox>();
+    right_column->SetGap(innerGap);
+    right_column->AddChild(std::move(cart_column));
+    right_column->AddChild(std::move(credit_panel));
+
+    root.AddChild(std::move(category_panel));
+    root.AddChild(std::move(product_panel));
+    root.AddChild(std::move(right_column));
+
+    const int contentWidth = std::max(0, contentRight - contentLeft);
     const int contentHeight = std::max(0, contentBottom - contentTop);
+    ui::layout::Size content_size{contentWidth, contentHeight};
+    root.Measure(content_size);
+    root.Arrange(ui::layout::Rect{contentLeft, contentTop, contentWidth, contentHeight});
 
-    int cartBottom = contentTop + contentHeight;
+    auto toRect = [](const ui::layout::Rect& rect) {
+        RECT rc{};
+        rc.left = rect.x;
+        rc.top = rect.y;
+        rc.right = rect.x + rect.w;
+        rc.bottom = rect.y + rect.h;
+        return rc;
+    };
 
-    RECT rcAction{};
-    RECT rcCredit{};
-    RECT rcSummary{};
-
-    const int actionTop = std::max(contentTop, cartBottom - actionHeight);
-    rcAction = {cartListLeft, actionTop, cartListRight, cartBottom};
-    cartBottom = actionTop - columnGap;
-
-    const int summaryTop = std::max(contentTop, cartBottom - summaryHeight);
-    rcSummary = {cartListLeft, summaryTop, cartListRight, cartBottom};
-    cartBottom = summaryTop - columnGap;
-
-    layout.rcCategoryPanel = {columnStart, contentTop, columnStart + fixedCategoryWidth, contentBottom};
-
-    layout.rcProductPanel = {
-        layout.rcCategoryPanel.right + columnGap,
-        contentTop,
-        layout.rcCategoryPanel.right + columnGap + productsWidth,
-        contentBottom};
-
-    layout.rcCartPanel = {cartListLeft, contentTop, cartListRight, cartBottom};
-
-    layout.rcCartSummary = rcSummary;
-    rcCredit = {payLeft, contentTop, payRight, contentBottom};
-    layout.rcCreditPanel = rcCredit;
-    layout.rcActionPanel = rcAction;
+    layout.rcCategoryPanel = toRect(category_panel_ptr->ArrangedRect());
+    layout.rcProductPanel = toRect(product_panel_ptr->ArrangedRect());
+    layout.rcCartPanel = toRect(cart_panel_ptr->ArrangedRect());
+    layout.rcCartSummary = toRect(cart_summary_ptr->ArrangedRect());
+    layout.rcActionPanel = toRect(action_panel_ptr->ArrangedRect());
+    layout.rcCreditPanel = toRect(credit_panel_ptr->ArrangedRect());
 
     const int creditInnerLeft = layout.rcCreditPanel.left + creditPadding;
     const int creditInnerRight = layout.rcCreditPanel.right - creditPadding;
