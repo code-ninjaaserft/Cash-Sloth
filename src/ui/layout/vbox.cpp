@@ -1,6 +1,7 @@
 #include "ui/layout/vbox.h"
 
 #include <algorithm>
+#include <vector>
 
 namespace ui::layout {
 
@@ -39,45 +40,85 @@ void VBox::Arrange(const Rect& final_rect) {
     arranged_ = ApplyMargin(final_rect);
     Rect content = ContentRect(arranged_);
 
-    int total_fixed = 0;
+    const int child_count = static_cast<int>(children_.size());
+    const int gap_total = (child_count > 1) ? gap_ * (child_count - 1) : 0;
+    const int available_for_children = std::max(0, content.h - gap_total);
+
+    int non_spacer_total = 0;
     int spacer_count = 0;
-    bool first = true;
     for (const auto& child : children_) {
         if (child->IsSpacer()) {
             ++spacer_count;
         } else {
-            total_fixed += child->DesiredSize().h;
+            non_spacer_total += child->DesiredSize().h;
         }
-        if (!first) {
-            total_fixed += gap_;
-        }
-        first = false;
     }
 
-    int remaining = content.h - total_fixed;
-    int extra_per_spacer = (spacer_count > 0 && remaining > 0) ? (remaining / spacer_count) : 0;
-    int remainder = (spacer_count > 0 && remaining > 0) ? (remaining % spacer_count) : 0;
+    std::vector<int> heights;
+    heights.reserve(children_.size());
+    heights.assign(children_.size(), 0);
 
-    int y = content.y;
-    int available_remaining = content.h;
-    for (const auto& child : children_) {
-        int child_height = child->DesiredSize().h;
-        if (child->IsSpacer()) {
-            child_height += extra_per_spacer;
-            if (remainder > 0) {
-                ++child_height;
-                --remainder;
+    if (non_spacer_total == 0) {
+        if (spacer_count > 0) {
+            int extra_per_spacer = available_for_children / spacer_count;
+            int remainder = available_for_children % spacer_count;
+            for (size_t i = 0; i < children_.size(); ++i) {
+                if (!children_[i]->IsSpacer()) {
+                    continue;
+                }
+                heights[i] = extra_per_spacer;
+                if (remainder > 0) {
+                    ++heights[i];
+                    --remainder;
+                }
             }
         }
-        child_height = std::max(0, child_height);
-        child_height = std::min(child_height, available_remaining);
+    } else if (available_for_children >= non_spacer_total) {
+        int extra = available_for_children - non_spacer_total;
+        int extra_per_spacer = (spacer_count > 0) ? (extra / spacer_count) : 0;
+        int remainder = (spacer_count > 0) ? (extra % spacer_count) : 0;
+        for (size_t i = 0; i < children_.size(); ++i) {
+            if (children_[i]->IsSpacer()) {
+                heights[i] = extra_per_spacer;
+                if (remainder > 0) {
+                    ++heights[i];
+                    --remainder;
+                }
+            } else {
+                heights[i] = children_[i]->DesiredSize().h;
+            }
+        }
+    } else {
+        int used = 0;
+        for (size_t i = 0; i < children_.size(); ++i) {
+            if (children_[i]->IsSpacer()) {
+                continue;
+            }
+            int scaled = (children_[i]->DesiredSize().h * available_for_children) / non_spacer_total;
+            heights[i] = scaled;
+            used += scaled;
+        }
+        int remainder = available_for_children - used;
+        for (size_t i = 0; i < children_.size() && remainder > 0; ++i) {
+            if (children_[i]->IsSpacer()) {
+                continue;
+            }
+            ++heights[i];
+            --remainder;
+        }
+    }
 
+    int y = content.y;
+    for (size_t i = 0; i < children_.size(); ++i) {
+        int child_height = std::max(0, heights[i]);
         Rect slot{content.x, y, content.w, child_height};
-        Rect aligned = AlignChild(slot, child->DesiredSize(), child->AlignHorizontal(), AlignV::Stretch);
-        child->Arrange(aligned);
+        Rect aligned = AlignChild(slot, children_[i]->DesiredSize(), children_[i]->AlignHorizontal(), AlignV::Stretch);
+        children_[i]->Arrange(aligned);
 
-        y += child_height + gap_;
-        available_remaining = std::max(0, content.h - (y - content.y));
+        y += child_height;
+        if (i + 1 < children_.size()) {
+            y += gap_;
+        }
     }
 }
 

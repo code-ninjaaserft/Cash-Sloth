@@ -16,6 +16,13 @@ void ExpectEqual(int actual, int expected, const char* message) {
     }
 }
 
+void ExpectGreater(int actual, int expected_min, const char* message) {
+    if (actual <= expected_min) {
+        std::cerr << "FAIL: " << message << " expected > " << expected_min << " actual=" << actual << "\n";
+        std::exit(EXIT_FAILURE);
+    }
+}
+
 void TestVBoxGapPadding() {
     VBox root;
     root.SetGap(3);
@@ -113,6 +120,29 @@ void TestMarginPadding() {
     ExpectEqual(child_ptr->ArrangedRect().h, 10, "Margin/padding height");
 }
 
+void TestVBoxActionPanelPreserved() {
+    VBox root;
+    root.SetGap(2);
+
+    auto spacer = std::make_unique<Spacer>();
+    auto summary = std::make_unique<LeafBox>();
+    auto action = std::make_unique<LeafBox>();
+
+    summary->SetPreferredSize(Size{10, 40});
+    action->SetPreferredSize(Size{10, 30});
+
+    root.AddChild(std::move(spacer));
+    LeafBox* summary_ptr = static_cast<LeafBox*>(root.AddChild(std::move(summary)));
+    LeafBox* action_ptr = static_cast<LeafBox*>(root.AddChild(std::move(action)));
+
+    root.Measure(Size{100, 50});
+    root.Arrange(Rect{0, 0, 100, 50});
+
+    ExpectGreater(summary_ptr->ArrangedRect().h, 0, "VBox summary height");
+    ExpectGreater(action_ptr->ArrangedRect().h, 0, "VBox action height");
+    ExpectGreater(action_ptr->ArrangedRect().y, summary_ptr->ArrangedRect().y, "VBox action below summary");
+}
+
 }  // namespace ui::layout::tests
 
 int main() {
@@ -120,6 +150,7 @@ int main() {
     ui::layout::tests::TestHBoxSpacer();
     ui::layout::tests::TestGridUniform();
     ui::layout::tests::TestMarginPadding();
+    ui::layout::tests::TestVBoxActionPanelPreserved();
     std::cout << "All layout tests passed." << std::endl;
     return 0;
 }
