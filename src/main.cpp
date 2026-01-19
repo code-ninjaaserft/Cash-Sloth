@@ -650,7 +650,6 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
 
     auto action_panel = std::make_unique<ui::layout::Grid>(2, 2);
     action_panel->SetId("action_panel");
-    const int actionPadding = gap;
     const int actionExtraBottom = scaled(20);
     action_panel->SetPadding(ui::layout::Thickness{actionPadding, actionPadding, actionPadding, actionPadding + actionExtraBottom});
     action_panel->SetGap(gap);
