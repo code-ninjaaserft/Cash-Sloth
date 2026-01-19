@@ -16,6 +16,10 @@ contributors and operators.
 4. Keep the `assets/` directory next to the produced executable so styles, catalogue, and
    imagery are located at runtime.
 
+**Quick build reference**
+- CMake configure: `cmake -S . -B build`
+- CMake build: `cmake --build build --config Release`
+
 ## Asset conventions
 - **Catalogue:** `assets/cash_sloth_catalog.json` defines categories, articles, prices,
   and optional barcodes. The parser also accepts a `categories` array or a top-level
