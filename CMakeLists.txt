@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(cash-sloth WIN32
     src/main.cpp
+    src/cash_sloth_diagnostics.cpp
     src/cash_sloth_json.cpp
     src/cash_sloth_style.cpp
 )
@@ -33,4 +34,3 @@ if (MSVC)
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:cash-sloth>/assets"
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:cash-sloth>/assets")
 endif()
-
