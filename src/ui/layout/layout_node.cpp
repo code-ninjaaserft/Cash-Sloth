@@ -75,7 +75,7 @@ std::string Node::DumpTree() const {
     return os.str();
 }
 
-void Node::AppendDump(std::ostream& os, int depth) const {
+void Node::AppendDumpLine(std::ostream& os, int depth) const {
     os << std::string(static_cast<std::size_t>(depth * 2), ' ');
     os << TypeName();
     if (!id_.empty()) {
@@ -86,6 +86,10 @@ void Node::AppendDump(std::ostream& os, int depth) const {
     os << '\n';
 }
 
+void Node::AppendDump(std::ostream& os, int depth) const {
+    AppendDumpLine(os, depth);
+}
+
 Node* ContainerNode::AddChild(std::unique_ptr<Node> child) {
     Node* raw = child.get();
     children_.push_back(std::move(child));
@@ -93,9 +97,17 @@ Node* ContainerNode::AddChild(std::unique_ptr<Node> child) {
 }
 
 void ContainerNode::AppendDump(std::ostream& os, int depth) const {
-    Node::AppendDump(os, depth);
+    AppendDumpLine(os, depth);
+    const std::string indent(static_cast<std::size_t>((depth + 1) * 2), ' ');
     for (const auto& child : children_) {
-        child->AppendDump(os, depth + 1);
+        std::istringstream child_stream(child->DumpTree());
+        std::string line;
+        while (std::getline(child_stream, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            os << indent << line << '\n';
+        }
     }
 }
 

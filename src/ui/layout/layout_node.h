@@ -42,6 +42,7 @@ protected:
     Rect ApplyMargin(const Rect& final_rect) const;
     Rect ContentRect(const Rect& rect) const;
     Size ClampToMinMax(Size size) const;
+    void AppendDumpLine(std::ostream& os, int depth) const;
 
     virtual std::string_view TypeName() const = 0;
     virtual void AppendDump(std::ostream& os, int depth) const;
