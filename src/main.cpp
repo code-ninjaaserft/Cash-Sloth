@@ -2672,9 +2672,10 @@ bool CashSlothGUI::updateAdaptiveLayoutMetrics(StyleSheet::Metrics& metrics) {
     }
     const int payWidth = measureTextWidth(dc, buttonFont_, L"Bezahlen");
     if (maxActionWidth > 0 || payWidth > 0) {
-        const int requiredPanelUsableWidth = std::max(
-            (maxActionWidth + textPaddingX * 2) * 2 + actionGap,
-            payWidth + textPaddingX * 2);
+        const int actionButtonWidth = static_cast<int>(maxActionWidth + textPaddingX * 2);
+        const int actionRowWidth = static_cast<int>(actionButtonWidth * 2 + actionGap);
+        const int payButtonWidth = static_cast<int>(payWidth + textPaddingX * 2);
+        const int requiredPanelUsableWidth = (std::max)(actionRowWidth, payButtonWidth);
         const int requiredPanelWidth = requiredPanelUsableWidth + columnPadding * 2;
         const int desiredCartListUnscaled = static_cast<int>(
             std::lround(static_cast<double>(requiredPanelWidth) / layout_.scale));
