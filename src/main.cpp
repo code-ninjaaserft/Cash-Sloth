@@ -429,7 +429,13 @@ private:
 
 
 
-Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int windowHeight, std::size_t quickAmountCount) {
+Layout computeLayout(
+    const StyleSheet::Metrics& metrics,
+    int windowWidth,
+    int windowHeight,
+    std::size_t quickAmountCount,
+    std::size_t categoryCount,
+    std::size_t productCount) {
     Layout layout{};
     layout.rcClient = {0, 0, windowWidth, windowHeight};
 
@@ -485,7 +491,7 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
     layout.rcHeader = {margin, margin, windowWidth - margin, margin + headerHeight};
 
     const int contentLeft = margin;
-    const int contentTop = margin;
+    const int contentTop = margin + headerHeight;
     const int contentRight = windowWidth - margin;
     const int contentBottom = windowHeight - margin;
 
@@ -736,6 +742,95 @@ Layout computeLayout(const StyleSheet::Metrics& metrics, int windowWidth, int wi
         ui::layout::LayoutEngine::CollectRects(quick_grid, quick_rects);
         for (const auto& [id, rect] : quick_rects) {
             layout.rects[id] = toRect(rect);
+        }
+    }
+
+    auto categoryAreaIt = layout_rects.find("category_buttons_area");
+    if (categoryAreaIt != layout_rects.end() && categoryCount > 0) {
+        const ui::layout::Rect& area = categoryAreaIt->second;
+        const int buttonHeight = layout.metrics.categoryHeight;
+        const int buttonSpacing = layout.metrics.categorySpacing;
+        int maxFit = 0;
+        if (buttonHeight > 0 && area.h > 0) {
+            maxFit = (area.h + buttonSpacing) / (buttonHeight + buttonSpacing);
+        }
+        const std::size_t count = std::min(categoryCount, static_cast<std::size_t>(std::max(0, maxFit)));
+        if (count > 0) {
+            ui::layout::VBox category_box;
+            category_box.SetGap(buttonSpacing);
+            for (std::size_t i = 0; i < count; ++i) {
+                auto leaf = std::make_unique<ui::layout::LeafBox>();
+                leaf->SetId("cat_" + std::to_string(i));
+                leaf->SetPreferredSize(ui::layout::Size{0, buttonHeight});
+                leaf->SetMinSize(ui::layout::Size{0, buttonHeight});
+                category_box.AddChild(std::move(leaf));
+            }
+            category_box.Measure(ui::layout::Size{area.w, area.h});
+            category_box.Arrange(area);
+            std::unordered_map<std::string, ui::layout::Rect> category_rects;
+            ui::layout::LayoutEngine::CollectRects(category_box, category_rects);
+            for (const auto& [id, rect] : category_rects) {
+                layout.rects[id] = toRect(rect);
+            }
+        }
+    }
+
+    auto productAreaIt = layout_rects.find("product_buttons_area");
+    if (productAreaIt != layout_rects.end() && productCount > 0) {
+        struct ProductGridSettings {
+            int columns = 1;
+            int tileWidth = 0;
+            int tileHeight = 0;
+            int padding = 0;
+        };
+
+        const ui::layout::Rect& area = productAreaIt->second;
+        ProductGridSettings grid{};
+        grid.padding = layout.metrics.gap;
+        const int panelWidth = std::max(0, area.w);
+        const int availableWidth = std::max(0, panelWidth - grid.padding * 2);
+        const int minTileWidth = scaled(160);
+        const int maxTileWidth = scaled(240);
+        int columns = 3;
+        while (columns > 1) {
+            const int rawWidth = availableWidth - grid.padding * (columns + 1);
+            const int testWidth = (columns > 0) ? std::max(0, rawWidth / columns) : 0;
+            if (testWidth >= minTileWidth) {
+                break;
+            }
+            --columns;
+        }
+        columns = std::max(1, columns);
+        grid.columns = columns;
+        const int finalRawWidth = availableWidth - grid.padding * (columns + 1);
+        const int finalWidth = (columns > 0) ? std::max(0, finalRawWidth / columns) : 0;
+        grid.tileWidth = std::clamp(finalWidth, minTileWidth, maxTileWidth);
+        int tileHeight = static_cast<int>(std::round(static_cast<double>(grid.tileWidth) * 0.75));
+        grid.tileHeight = std::clamp(tileHeight, scaled(120), scaled(200));
+
+        const int rows = std::max(1, static_cast<int>((productCount + static_cast<std::size_t>(grid.columns) - 1)
+            / static_cast<std::size_t>(grid.columns)));
+        ui::layout::Grid product_grid(rows, grid.columns);
+        product_grid.SetPadding(ui::layout::Thickness::Uniform(grid.padding));
+        product_grid.SetGap(grid.padding);
+        for (std::size_t i = 0; i < productCount; ++i) {
+            auto leaf = std::make_unique<ui::layout::LeafBox>();
+            leaf->SetId("prod_" + std::to_string(i));
+            leaf->SetPreferredSize(ui::layout::Size{0, grid.tileHeight});
+            leaf->SetMinSize(ui::layout::Size{0, grid.tileHeight});
+            const int row = static_cast<int>(i / static_cast<std::size_t>(grid.columns));
+            const int col = static_cast<int>(i % static_cast<std::size_t>(grid.columns));
+            product_grid.AddChild(std::move(leaf), ui::layout::GridPlacement{row, col});
+        }
+        product_grid.Measure(ui::layout::Size{area.w, area.h});
+        product_grid.Arrange(area);
+        std::unordered_map<std::string, ui::layout::Rect> product_rects;
+        ui::layout::LayoutEngine::CollectRects(product_grid, product_rects);
+        const int areaBottom = area.y + area.h;
+        for (const auto& [id, rect] : product_rects) {
+            if (rect.y + rect.h <= areaBottom) {
+                layout.rects[id] = toRect(rect);
+            }
         }
     }
 
@@ -1367,11 +1462,19 @@ void CashSlothGUI::calculateLayout() {
     }
 
     StyleSheet::Metrics tunedMetrics = style_.metrics;
-    layout_ = computeLayout(tunedMetrics, width, height, quickAmounts_.size());
+    std::size_t categoryCount = catalogue_.categories().size();
+    std::size_t productCount = 0;
+    if (!visibleProducts_.empty()) {
+        productCount = visibleProducts_.size();
+    } else if (!catalogue_.categories().empty()) {
+        const int clampedIndex = std::clamp(selectedCategoryIndex_, 0, static_cast<int>(catalogue_.categories().size()) - 1);
+        productCount = catalogue_.categories()[static_cast<std::size_t>(clampedIndex)].articles.size();
+    }
+    layout_ = computeLayout(tunedMetrics, width, height, quickAmounts_.size(), categoryCount, productCount);
     refreshFonts();
 
     if (updateAdaptiveLayoutMetrics(tunedMetrics)) {
-        layout_ = computeLayout(tunedMetrics, width, height, quickAmounts_.size());
+        layout_ = computeLayout(tunedMetrics, width, height, quickAmounts_.size(), categoryCount, productCount);
         refreshFonts();
     }
 
@@ -1399,6 +1502,18 @@ void CashSlothGUI::applyLayout() {
             return;
         }
         SendMessageW(handle, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
+    };
+
+    auto moveToRectOrHide = [&](HWND handle, const RECT& rect) {
+        if (!handle) {
+            return;
+        }
+        if (IsRectEmpty(&rect)) {
+            ShowWindow(handle, SW_HIDE);
+            return;
+        }
+        ShowWindow(handle, SW_SHOW);
+        MoveWindow(handle, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, FALSE);
     };
 
     moveToRect(cartTitle_, layout_.get("title_cart"));
@@ -1447,35 +1562,16 @@ void CashSlothGUI::applyLayout() {
         applyFont(quickAmountButtons_[i], moneyFont_ ? moneyFont_ : buttonFont_);
     }
 
-    if (!categoryButtons_.empty()) {
-        const RECT area = layout_.get("category_buttons_area");
-        int buttonHeight = layout_.metrics.categoryHeight;
-        int buttonSpacing = layout_.metrics.categorySpacing;
-        int width = area.right - area.left;
-        int y = area.top;
-        for (HWND button : categoryButtons_) {
-            if (y + buttonHeight > area.bottom) {
-                break;
-            }
-            MoveWindow(button, area.left, y, width, buttonHeight, FALSE);
-            SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(categoryFont_ ? categoryFont_ : buttonFont_), FALSE);
-            y += buttonHeight + buttonSpacing;
-        }
+    for (std::size_t i = 0; i < categoryButtons_.size(); ++i) {
+        const std::string id = "cat_" + std::to_string(i);
+        moveToRectOrHide(categoryButtons_[i], layout_.get(id.c_str()));
+        applyFont(categoryButtons_[i], categoryFont_ ? categoryFont_ : buttonFont_);
     }
 
-    if (!productButtons_.empty() && !visibleProducts_.empty()) {
-        const ProductGridMetrics grid = computeProductGrid();
-        const RECT area = layout_.get("product_buttons_area");
-        const int startX = area.left + grid.padding;
-        const int startY = area.top + grid.padding;
-        for (std::size_t i = 0; i < productButtons_.size(); ++i) {
-            const int row = static_cast<int>(i / grid.columns);
-            const int col = static_cast<int>(i % grid.columns);
-            const int x = startX + col * (grid.tileWidth + grid.padding);
-            const int y = startY + row * (grid.tileHeight + grid.padding);
-            MoveWindow(productButtons_[i], x, y, grid.tileWidth, grid.tileHeight, FALSE);
-            SendMessageW(productButtons_[i], WM_SETFONT, reinterpret_cast<WPARAM>(tileFont_), FALSE);
-        }
+    for (std::size_t i = 0; i < productButtons_.size(); ++i) {
+        const std::string id = "prod_" + std::to_string(i);
+        moveToRectOrHide(productButtons_[i], layout_.get(id.c_str()));
+        applyFont(productButtons_[i], tileFont_);
     }
 
 }
@@ -1691,30 +1787,27 @@ void CashSlothGUI::createCreditPanel() {
         nullptr);
     SendMessageW(undoCreditButton_, WM_SETFONT, reinterpret_cast<WPARAM>(moneyFont_ ? moneyFont_ : buttonFont_), FALSE);
 
-    for (HWND button : quickAmountButtons_) {
-        DestroyWindow(button);
-    }
-    quickAmountButtons_.clear();
-
-    for (std::size_t i = 0; i < quickAmounts_.size(); ++i) {
-        const std::string id = "quick_" + std::to_string(i);
-        const RECT quickRect = layout_.get(id.c_str());
-        std::wstring text = L"+" + toWide(formatCurrency(quickAmounts_[i]));
-        HWND button = CreateWindowExW(
-            0,
-            L"BUTTON",
-            text.c_str(),
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            quickRect.left,
-            quickRect.top,
-            quickRect.right - quickRect.left,
-            quickRect.bottom - quickRect.top,
-            window_,
-            reinterpret_cast<HMENU>(ID_QUICK_AMOUNT_BASE + static_cast<int>(i)),
-            instance_,
-            nullptr);
-        SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(moneyFont_ ? moneyFont_ : buttonFont_), FALSE);
-        quickAmountButtons_.push_back(button);
+    if (quickAmountButtons_.empty()) {
+        for (std::size_t i = 0; i < quickAmounts_.size(); ++i) {
+            const std::string id = "quick_" + std::to_string(i);
+            const RECT quickRect = layout_.get(id.c_str());
+            std::wstring text = L"+" + toWide(formatCurrency(quickAmounts_[i]));
+            HWND button = CreateWindowExW(
+                0,
+                L"BUTTON",
+                text.c_str(),
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+                quickRect.left,
+                quickRect.top,
+                quickRect.right - quickRect.left,
+                quickRect.bottom - quickRect.top,
+                window_,
+                reinterpret_cast<HMENU>(ID_QUICK_AMOUNT_BASE + static_cast<int>(i)),
+                instance_,
+                nullptr);
+            SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(moneyFont_ ? moneyFont_ : buttonFont_), FALSE);
+            quickAmountButtons_.push_back(button);
+        }
     }
 }
 
@@ -1872,16 +1965,10 @@ void CashSlothGUI::buildCategoryButtons() {
         productTitleRect.top,
         productTitleRect.right - productTitleRect.left);
 
-    const RECT buttonsArea = layout_.get("category_buttons_area");
-    int buttonHeight = layout_.metrics.categoryHeight;
-    int buttonSpacing = layout_.metrics.categorySpacing;
-    int width = buttonsArea.right - buttonsArea.left;
-    int y = buttonsArea.top;
-    int availableBottom = buttonsArea.bottom;
-    int x = buttonsArea.left;
-
     for (std::size_t i = 0; i < categories.size(); ++i) {
-        if (y + buttonHeight > availableBottom) {
+        const std::string id = "cat_" + std::to_string(categoryOrder_.size());
+        const RECT buttonRect = layout_.get(id.c_str());
+        if (IsRectEmpty(&buttonRect)) {
             break;
         }
         categoryOrder_.push_back(&categories[i]);
@@ -1891,17 +1978,16 @@ void CashSlothGUI::buildCategoryButtons() {
             L"BUTTON",
             text.c_str(),
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            x,
-            y,
-            width,
-            buttonHeight,
+            0,
+            0,
+            1,
+            1,
             window_,
             reinterpret_cast<HMENU>(ID_CATEGORY_BASE + static_cast<int>(i)),
             instance_,
             nullptr);
         SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(categoryFont_ ? categoryFont_ : buttonFont_), FALSE);
         categoryButtons_.push_back(button);
-        y += buttonHeight + buttonSpacing;
     }
 
     if (selectedCategoryIndex_ >= static_cast<int>(categoryButtons_.size())) {
@@ -1909,6 +1995,7 @@ void CashSlothGUI::buildCategoryButtons() {
     }
 
     updateCategoryHighlight();
+    applyLayout();
 }
 
 void CashSlothGUI::rebuildProductButtons() {
@@ -1926,28 +2013,22 @@ void CashSlothGUI::rebuildProductButtons() {
     const Category* category = categoryOrder_[static_cast<std::size_t>(selectedCategoryIndex_)];
     visibleProducts_.reserve(category->articles.size());
 
-    const ProductGridMetrics grid = computeProductGrid();
-    const RECT area = layout_.get("product_buttons_area");
-    const int startX = area.left + grid.padding;
-    const int startY = area.top + grid.padding;
-
     for (const Article& article : category->articles) {
+        const std::string id = "prod_" + std::to_string(visibleProducts_.size());
+        const RECT buttonRect = layout_.get(id.c_str());
+        if (IsRectEmpty(&buttonRect)) {
+            break;
+        }
         visibleProducts_.push_back(&article);
-        const std::size_t index = visibleProducts_.size() - 1;
-        const int row = static_cast<int>(index / static_cast<std::size_t>(grid.columns));
-        const int col = static_cast<int>(index % static_cast<std::size_t>(grid.columns));
-        const int x = startX + col * (grid.tileWidth + grid.padding);
-        const int y = startY + row * (grid.tileHeight + grid.padding);
-
         HWND button = CreateWindowExW(
             0,
             L"BUTTON",
             L"",
             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-            x,
-            y,
-            grid.tileWidth,
-            grid.tileHeight,
+            0,
+            0,
+            1,
+            1,
             window_,
             reinterpret_cast<HMENU>(ID_PRODUCT_BASE + static_cast<int>(visibleProducts_.size() - 1)),
             instance_,
@@ -1956,7 +2037,9 @@ void CashSlothGUI::rebuildProductButtons() {
         productButtons_.push_back(button);
     }
 
+    const ProductGridMetrics grid = computeProductGrid();
     updateProductNameFont(grid);
+    applyLayout();
 }
 
 void CashSlothGUI::updateCategoryHighlight() {
