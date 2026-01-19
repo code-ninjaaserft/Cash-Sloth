@@ -30,6 +30,7 @@ public:
     const Rect& ArrangedRect() const;
     const Size& DesiredSize() const;
     std::string DumpTree() const;
+    virtual bool IsSpacer() const { return false; }
 
     const Thickness& Margin() const { return margin_; }
     const Thickness& Padding() const { return padding_; }
@@ -44,7 +45,6 @@ protected:
 
     virtual std::string_view TypeName() const = 0;
     virtual void AppendDump(std::ostream& os, int depth) const;
-    virtual bool IsSpacer() const { return false; }
 
     GroupRules rules_{};
     Rect arranged_{};

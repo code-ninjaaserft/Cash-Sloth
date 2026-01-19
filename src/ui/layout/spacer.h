@@ -8,10 +8,10 @@ class Spacer : public Node {
 public:
     Size Measure(const Size& available) override;
     void Arrange(const Rect& final_rect) override;
+    bool IsSpacer() const override { return true; }
 
 protected:
     std::string_view TypeName() const override { return "Spacer"; }
-    bool IsSpacer() const override { return true; }
 };
 
 }  // namespace ui::layout
