@@ -2451,7 +2451,8 @@ double CashSlothGUI::computeSingleLineFontScale(
 CashSlothGUI::ProductGridMetrics CashSlothGUI::computeProductGrid() const {
     ProductGridMetrics grid{};
     grid.padding = layout_.metrics.gap;
-    const int availableWidth = std::max(0, layout_.rcProductPanel.right - layout_.rcProductPanel.left - grid.padding * 2);
+    const int panelWidth = static_cast<int>(layout_.rcProductPanel.right - layout_.rcProductPanel.left);
+    const int availableWidth = std::max(0, panelWidth - grid.padding * 2);
     const int minTileWidth = scale(160);
     const int maxTileWidth = scale(240);
     int columns = 3;
