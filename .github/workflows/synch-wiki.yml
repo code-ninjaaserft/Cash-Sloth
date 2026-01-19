@@ -1,0 +1,43 @@
+name: Sync wiki.md to GitHub Wiki
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "wiki.md"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Checkout wiki repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          # token: ${{ secrets.GITHUB_TOKEN }}  # optional, default is GITHUB_TOKEN
+
+      - name: Copy wiki.md -> Home.md
+        run: |
+          cp wiki.md wiki/Home.md
+
+      - name: Commit & push if changed
+        run: |
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+
+          git add Home.md
+          git commit -m "Sync Home.md from wiki.md"
+          git push
