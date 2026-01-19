@@ -15,12 +15,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configure CMake
         run: cmake -S . -B build -A x64
 
       - name: Build Release
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --parallel
 
       - name: Create GitHub Release and upload EXE
         uses: softprops/action-gh-release@v2
