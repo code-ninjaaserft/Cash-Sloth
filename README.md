@@ -14,6 +14,14 @@ and product catalogue definitions that power the interface.
   external assets are missing.
 - Simple Win32 message-pump application with double-buffered painting to keep redraws
   smooth on lower-powered kiosks.
+- Event-focused roadmap and milestone planning captured in the project wiki.
+
+## Roadmap & milestones
+
+The current milestone plan (QEN-GV in February and Z’Ämme ässe in August), including
+issue checklists and recommended labels, lives in
+[`docs/wiki.md`](docs/wiki.md#roadmap). Keep that document up to date when planning
+event releases or triaging new feature requests.
 
 ## Repository layout
 
