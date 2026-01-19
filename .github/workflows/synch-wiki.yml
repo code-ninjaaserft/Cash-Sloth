@@ -15,29 +15,33 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Checkout wiki repo
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki
-          # token: ${{ secrets.GITHUB_TOKEN }}  # optional, default is GITHUB_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Copy wiki.md -> Home.md
         run: |
+          set -euo pipefail
           cp wiki.md wiki/Home.md
 
       - name: Commit & push if changed
         run: |
+          set -euo pipefail
           cd wiki
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet; then
+          git add Home.md
+          if git diff --cached --quiet; then
             echo "No changes."
             exit 0
           fi
 
-          git add Home.md
           git commit -m "Sync Home.md from wiki.md"
           git push
