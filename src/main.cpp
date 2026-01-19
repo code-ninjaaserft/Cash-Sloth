@@ -2671,9 +2671,10 @@ bool CashSlothGUI::updateAdaptiveLayoutMetrics(StyleSheet::Metrics& metrics) {
     }
     const int payWidth = measureTextWidth(dc, buttonFont_, L"Bezahlen");
     if (maxActionWidth > 0 || payWidth > 0) {
-        const int requiredPanelWidth = std::max(
+        const int requiredPanelUsableWidth = std::max(
             (maxActionWidth + textPaddingX * 2) * 2 + actionGap,
             payWidth + textPaddingX * 2);
+        const int requiredPanelWidth = requiredPanelUsableWidth + columnPadding * 2;
         const int desiredCartListUnscaled = static_cast<int>(
             std::lround(static_cast<double>(requiredPanelWidth) / layout_.scale));
         if (desiredCartListUnscaled > metrics.minCartListWidth) {
@@ -2694,7 +2695,8 @@ bool CashSlothGUI::updateAdaptiveLayoutMetrics(StyleSheet::Metrics& metrics) {
         maxMoneyWidth = std::max(maxMoneyWidth, measureTextWidth(dc, buttonFont_, text));
     }
     if (maxMoneyWidth > 0) {
-        const int requiredPaymentWidthPx = maxMoneyWidth + textPaddingX * 2;
+        const int requiredPaymentUsableWidthPx = maxMoneyWidth + textPaddingX * 2;
+        const int requiredPaymentWidthPx = requiredPaymentUsableWidthPx + columnPadding * 2;
         const int desiredPaymentUnscaled = static_cast<int>(
             std::lround(static_cast<double>(requiredPaymentWidthPx) / layout_.scale));
         if (desiredPaymentUnscaled > metrics.minPaymentWidth) {
