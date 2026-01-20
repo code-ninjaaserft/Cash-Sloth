@@ -71,6 +71,82 @@ void TestHBoxSpacer() {
     ExpectEqual(right_ptr->ArrangedRect().x, 90, "HBox right x");
 }
 
+void TestVBoxSpacerFill() {
+    VBox root;
+    root.SetGap(4);
+    root.SetPadding(Thickness::Uniform(2));
+
+    auto title = std::make_unique<LeafBox>();
+    auto spacer = std::make_unique<Spacer>();
+    auto footer = std::make_unique<LeafBox>();
+
+    title->SetPreferredSize(Size{10, 40});
+    footer->SetPreferredSize(Size{10, 60});
+
+    LeafBox* title_ptr = static_cast<LeafBox*>(root.AddChild(std::move(title)));
+    Spacer* spacer_ptr = static_cast<Spacer*>(root.AddChild(std::move(spacer)));
+    LeafBox* footer_ptr = static_cast<LeafBox*>(root.AddChild(std::move(footer)));
+
+    root.Measure(Size{200, 400});
+    root.Arrange(Rect{0, 0, 200, 400});
+
+    const int expected_spacer = 400 - 4 - 8 - 40 - 60;
+    ExpectEqual(title_ptr->ArrangedRect().h, 40, "VBox title height");
+    ExpectEqual(spacer_ptr->ArrangedRect().h, expected_spacer, "VBox spacer fill height");
+    ExpectEqual(footer_ptr->ArrangedRect().y, 2 + 40 + 4 + expected_spacer + 4, "VBox footer y");
+}
+
+void TestHBoxSpacerFill() {
+    HBox root;
+    root.SetGap(5);
+    root.SetPadding(Thickness::Uniform(3));
+
+    auto left = std::make_unique<LeafBox>();
+    auto spacer = std::make_unique<Spacer>();
+    auto right = std::make_unique<LeafBox>();
+
+    left->SetPreferredSize(Size{40, 10});
+    right->SetPreferredSize(Size{60, 10});
+
+    LeafBox* left_ptr = static_cast<LeafBox*>(root.AddChild(std::move(left)));
+    Spacer* spacer_ptr = static_cast<Spacer*>(root.AddChild(std::move(spacer)));
+    LeafBox* right_ptr = static_cast<LeafBox*>(root.AddChild(std::move(right)));
+
+    root.Measure(Size{400, 60});
+    root.Arrange(Rect{0, 0, 400, 60});
+
+    const int expected_spacer = 400 - 6 - 10 - 40 - 60;
+    ExpectEqual(left_ptr->ArrangedRect().w, 40, "HBox left width");
+    ExpectEqual(spacer_ptr->ArrangedRect().w, expected_spacer, "HBox spacer fill width");
+    ExpectEqual(right_ptr->ArrangedRect().x, 3 + 40 + 5 + expected_spacer + 5, "HBox right x");
+}
+
+void TestSpacerWeights() {
+    VBox root;
+    root.SetGap(0);
+
+    auto top = std::make_unique<LeafBox>();
+    auto spacer_one = std::make_unique<Spacer>();
+    auto spacer_two = std::make_unique<Spacer>();
+    auto bottom = std::make_unique<LeafBox>();
+
+    top->SetPreferredSize(Size{10, 30});
+    bottom->SetPreferredSize(Size{10, 30});
+    spacer_one->SetWeight(1.0f);
+    spacer_two->SetWeight(2.0f);
+
+    root.AddChild(std::move(top));
+    Spacer* spacer_one_ptr = static_cast<Spacer*>(root.AddChild(std::move(spacer_one)));
+    Spacer* spacer_two_ptr = static_cast<Spacer*>(root.AddChild(std::move(spacer_two)));
+    root.AddChild(std::move(bottom));
+
+    root.Measure(Size{200, 300});
+    root.Arrange(Rect{0, 0, 200, 300});
+
+    ExpectEqual(spacer_one_ptr->ArrangedRect().h, 80, "VBox spacer weight 1");
+    ExpectEqual(spacer_two_ptr->ArrangedRect().h, 160, "VBox spacer weight 2");
+}
+
 void TestGridUniform() {
     Grid grid(2, 2);
     grid.SetGap(2);
@@ -148,6 +224,9 @@ void TestVBoxActionPanelPreserved() {
 int main() {
     ui::layout::tests::TestVBoxGapPadding();
     ui::layout::tests::TestHBoxSpacer();
+    ui::layout::tests::TestVBoxSpacerFill();
+    ui::layout::tests::TestHBoxSpacerFill();
+    ui::layout::tests::TestSpacerWeights();
     ui::layout::tests::TestGridUniform();
     ui::layout::tests::TestMarginPadding();
     ui::layout::tests::TestVBoxActionPanelPreserved();
