@@ -16,4 +16,8 @@ void Spacer::Arrange(const Rect& final_rect) {
     arranged_ = ApplyMargin(final_rect);
 }
 
+void Spacer::SetWeight(float weight) {
+    weight_ = (weight > 0.0f) ? weight : 0.0f;
+}
+
 }  // namespace ui::layout

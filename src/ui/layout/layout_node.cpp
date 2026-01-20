@@ -46,6 +46,12 @@ const Size& Node::DesiredSize() const {
     return desired_;
 }
 
+Size Node::MinimumDesiredSize() const {
+    Size minimum = ClampToMinMax(Size{});
+    minimum = AddThickness(minimum, margin_);
+    return minimum;
+}
+
 void Node::SetDesiredSize(Size size) {
     desired_ = ClampNonNegative(size);
 }

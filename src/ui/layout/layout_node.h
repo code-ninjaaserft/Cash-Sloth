@@ -29,6 +29,7 @@ public:
 
     const Rect& ArrangedRect() const;
     const Size& DesiredSize() const;
+    Size MinimumDesiredSize() const;
     std::string DumpTree() const;
     virtual bool IsSpacer() const { return false; }
 
