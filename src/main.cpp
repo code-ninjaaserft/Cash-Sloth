@@ -621,7 +621,12 @@ Layout computeLayout(
     category_footer->SetId("category_footer");
     const int footerTopPadding = gap / 2;
     const int footerBottomPadding = gap - footerTopPadding;
-    category_footer->SetPadding(ui::layout::Thickness{0, footerTopPadding, 0, footerBottomPadding});
+    ui::layout::Thickness footerPad{};
+    footerPad.left = 0;
+    footerPad.top = footerTopPadding;
+    footerPad.right = 0;
+    footerPad.bottom = footerBottomPadding;
+    category_footer->SetPadding(footerPad);
     category_footer->AddChild(make_leaf("btn_edit_mode", layout.metrics.quickButtonHeight));
     category_panel->AddChild(std::move(category_footer));
     category_column->AddChild(std::move(category_panel));
@@ -668,7 +673,12 @@ Layout computeLayout(
     auto action_panel = std::make_unique<ui::layout::Grid>(2, 2);
     action_panel->SetId("action_panel");
     const int actionExtraBottom = scaled(20);
-    action_panel->SetPadding(ui::layout::Thickness{actionPadding, actionPadding, actionPadding, actionPadding + actionExtraBottom});
+    ui::layout::Thickness actionPad{};
+    actionPad.left = actionPadding;
+    actionPad.top = actionPadding;
+    actionPad.right = actionPadding;
+    actionPad.bottom = actionPadding + actionExtraBottom;
+    action_panel->SetPadding(actionPad);
     action_panel->SetGap(gap);
     action_panel->SetMinSize(ui::layout::Size{cartListWidth, actionHeight});
     action_panel->SetMaxSize(ui::layout::Size{cartListWidth, actionHeight});
