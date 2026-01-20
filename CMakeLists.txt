@@ -10,6 +10,7 @@ add_executable(cash-sloth WIN32
     src/cash_sloth_diagnostics.cpp
     src/cash_sloth_json.cpp
     src/cash_sloth_style.cpp
+    src/ui/text_measure.cpp
     src/ui/layout/grid.cpp
     src/ui/layout/hbox.cpp
     src/ui/layout/layout_engine.cpp
