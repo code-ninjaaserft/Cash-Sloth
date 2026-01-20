@@ -88,6 +88,14 @@ When the build finishes, the freshly built `cash-sloth.exe` lives under
 `build/Release/` (or the configuration-specific output directory selected by your
 generator) together with an `assets/` folder so you can launch the program immediately.
 
+### Local CI
+
+Run the local CI gate script from a Visual Studio Developer Command Prompt:
+
+```
+scripts/ci_local.bat
+```
+
 ## Development tips
 
 - The Win32 message loop lives in `CashSlothGUI::run`, and UI state is refreshed via
