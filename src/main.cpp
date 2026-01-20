@@ -1464,8 +1464,9 @@ void CashSlothGUI::calculateLayout() {
     StyleSheet::Metrics tunedMetrics = style_.metrics;
     std::size_t categoryCount = catalogue_.categories().size();
     std::size_t productCount = 0;
-    if (!visibleProducts_.empty()) {
-        productCount = visibleProducts_.size();
+    if (!categoryOrder_.empty()) {
+        const int clampedIndex = std::clamp(selectedCategoryIndex_, 0, static_cast<int>(categoryOrder_.size()) - 1);
+        productCount = categoryOrder_[static_cast<std::size_t>(clampedIndex)]->articles.size();
     } else if (!catalogue_.categories().empty()) {
         const int clampedIndex = std::clamp(selectedCategoryIndex_, 0, static_cast<int>(catalogue_.categories().size()) - 1);
         productCount = catalogue_.categories()[static_cast<std::size_t>(clampedIndex)].articles.size();
@@ -2014,12 +2015,22 @@ void CashSlothGUI::rebuildProductButtons() {
     visibleProducts_.reserve(category->articles.size());
 
     for (const Article& article : category->articles) {
-        const std::string id = "prod_" + std::to_string(visibleProducts_.size());
+        visibleProducts_.push_back(&article);
+    }
+
+    std::size_t rectCapacity = 0;
+    for (const auto& [id, rect] : layout_.rects) {
+        if (id.rfind("prod_", 0) == 0 && !IsRectEmpty(&rect)) {
+            ++rectCapacity;
+        }
+    }
+    const std::size_t buttonCount = std::min(visibleProducts_.size(), rectCapacity);
+    for (std::size_t i = 0; i < buttonCount; ++i) {
+        const std::string id = "prod_" + std::to_string(i);
         const RECT buttonRect = layout_.get(id.c_str());
         if (IsRectEmpty(&buttonRect)) {
             break;
         }
-        visibleProducts_.push_back(&article);
         HWND button = CreateWindowExW(
             0,
             L"BUTTON",
@@ -2030,7 +2041,7 @@ void CashSlothGUI::rebuildProductButtons() {
             1,
             1,
             window_,
-            reinterpret_cast<HMENU>(ID_PRODUCT_BASE + static_cast<int>(visibleProducts_.size() - 1)),
+            reinterpret_cast<HMENU>(ID_PRODUCT_BASE + static_cast<int>(i)),
             instance_,
             nullptr);
         SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(tileFont_), FALSE);
