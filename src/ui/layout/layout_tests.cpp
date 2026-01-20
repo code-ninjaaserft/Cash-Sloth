@@ -1,8 +1,11 @@
 #include <cstdlib>
 #include <iostream>
+#include <cmath>
 
+#include "cash_sloth_style.h"
 #include "ui/layout/grid.h"
 #include "ui/layout/hbox.h"
+#include "ui/layout/layout_scene_cashsloth.h"
 #include "ui/layout/leaf_box.h"
 #include "ui/layout/spacer.h"
 #include "ui/layout/vbox.h"
@@ -19,6 +22,13 @@ void ExpectEqual(int actual, int expected, const char* message) {
 void ExpectGreater(int actual, int expected_min, const char* message) {
     if (actual <= expected_min) {
         std::cerr << "FAIL: " << message << " expected > " << expected_min << " actual=" << actual << "\n";
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+void ExpectTrue(bool value, const char* message) {
+    if (!value) {
+        std::cerr << "FAIL: " << message << "\n";
         std::exit(EXIT_FAILURE);
     }
 }
@@ -219,6 +229,52 @@ void TestVBoxActionPanelPreserved() {
     ExpectGreater(action_ptr->ArrangedRect().y, summary_ptr->ArrangedRect().y, "VBox action below summary");
 }
 
+void TestCashSlothLayoutRects() {
+    cashsloth::StyleSheet::Metrics metrics{};
+    const int windowWidth = 1280;
+    const int windowHeight = 840;
+    const std::size_t quickAmountCount = 6;
+    const std::size_t categoryCount = 1;
+    const std::size_t productCount = 1;
+    const auto scene = cashsloth::layout_scene::ComputeLayoutScene(
+        metrics,
+        windowWidth,
+        windowHeight,
+        quickAmountCount,
+        categoryCount,
+        productCount);
+
+    const auto& categoryArea = scene.get("category_buttons_area");
+    const auto& productArea = scene.get("product_buttons_area");
+    ExpectGreater(categoryArea.w, 0, "Category area width");
+    ExpectGreater(categoryArea.h, 0, "Category area height");
+    ExpectGreater(productArea.w, 0, "Product area width");
+    ExpectGreater(productArea.h, 0, "Product area height");
+
+    const auto& cat0 = scene.get("cat_0");
+    const auto& prod0 = scene.get("prod_0");
+    ExpectGreater(cat0.w, 0, "Category rect width");
+    ExpectGreater(cat0.h, 0, "Category rect height");
+    ExpectGreater(prod0.w, 0, "Product rect width");
+    ExpectGreater(prod0.h, 0, "Product rect height");
+
+    auto inside = [](const ui::layout::Rect& rect, const ui::layout::Rect& area) {
+        return rect.x >= area.x
+            && rect.y >= area.y
+            && rect.x + rect.w <= area.x + area.w
+            && rect.y + rect.h <= area.y + area.h;
+    };
+    ExpectTrue(inside(cat0, categoryArea), "Category rect inside area");
+    ExpectTrue(inside(prod0, productArea), "Product rect inside area");
+
+    const int minCategoryHeight = scene.metrics.categoryHeight;
+    const int minTileWidth = static_cast<int>(std::lround(160.0 * scene.scale));
+    const int minTileHeight = static_cast<int>(std::lround(120.0 * scene.scale));
+    ExpectTrue(cat0.h >= minCategoryHeight, "Category rect meets min height");
+    ExpectTrue(prod0.w >= minTileWidth, "Product rect meets min width");
+    ExpectTrue(prod0.h >= minTileHeight, "Product rect meets min height");
+}
+
 }  // namespace ui::layout::tests
 
 int main() {
@@ -230,6 +286,7 @@ int main() {
     ui::layout::tests::TestGridUniform();
     ui::layout::tests::TestMarginPadding();
     ui::layout::tests::TestVBoxActionPanelPreserved();
+    ui::layout::tests::TestCashSlothLayoutRects();
     std::cout << "All layout tests passed." << std::endl;
     return 0;
 }
