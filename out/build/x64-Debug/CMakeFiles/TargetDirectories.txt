@@ -1,0 +1,4 @@
+C:/Users/elved/OneDrive/Dokumente/GitHub/Cash-Sloth/out/build/x64-Debug/CMakeFiles/cash-sloth.dir
+C:/Users/elved/OneDrive/Dokumente/GitHub/Cash-Sloth/out/build/x64-Debug/CMakeFiles/layout-tests.dir
+C:/Users/elved/OneDrive/Dokumente/GitHub/Cash-Sloth/out/build/x64-Debug/CMakeFiles/edit_cache.dir
+C:/Users/elved/OneDrive/Dokumente/GitHub/Cash-Sloth/out/build/x64-Debug/CMakeFiles/rebuild_cache.dir

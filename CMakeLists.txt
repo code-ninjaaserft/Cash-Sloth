@@ -54,5 +54,17 @@ endif()
 if (MSVC)
     add_custom_command(TARGET cash-sloth POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:cash-sloth>/assets"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:cash-sloth>/assets")
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:cash-sloth>/assets"
+    )
+
+    # Make PDBs smaller / avoid LNK1140 by using FASTLINK for debug-like configs
+    target_link_options(cash-sloth PRIVATE
+        "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:/DEBUG:FASTLINK>"
+        "$<$<CONFIG:Release>:/DEBUG:NONE>"
+    )
+
+    target_link_options(layout-tests PRIVATE
+        "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:/DEBUG:FASTLINK>"
+        "$<$<CONFIG:Release>:/DEBUG:NONE>"
+    )
 endif()

@@ -1,0 +1,13 @@
+# ninja log v6
+23	1029	7906297026964292	CMakeFiles/cash-sloth.dir/src/cash_sloth_json.cpp.obj	5476f8950adc19cb
+34	1175	7906297027078301	CMakeFiles/cash-sloth.dir/src/ui/layout/grid.cpp.obj	8257206e5aff775
+41	1177	7906297027144294	CMakeFiles/cash-sloth.dir/src/ui/layout/hbox.cpp.obj	8c675f25f361afe1
+64	1180	7906297027372955	CMakeFiles/cash-sloth.dir/src/ui/layout/spacer.cpp.obj	78fbd5799aaf04c4
+58	1182	7906297027312895	CMakeFiles/cash-sloth.dir/src/ui/layout/leaf_box.cpp.obj	4195d08c2b5c38a1
+53	1230	7906297027267777	CMakeFiles/cash-sloth.dir/src/ui/layout/layout_node.cpp.obj	48ee8aaa4269805e
+69	1244	7906297027426831	CMakeFiles/cash-sloth.dir/src/ui/layout/vbox.cpp.obj	8c44bf624cd4553d
+46	1273	7906297027194315	CMakeFiles/cash-sloth.dir/src/ui/layout/layout_engine.cpp.obj	822a278a3d260707
+17	1883	7906297026904231	CMakeFiles/cash-sloth.dir/src/cash_sloth_diagnostics.cpp.obj	94d8283123f0ae2a
+28	2522	7906297027017795	CMakeFiles/cash-sloth.dir/src/cash_sloth_style.cpp.obj	7385346e775d1632
+11	2872	7906297026849375	CMakeFiles/cash-sloth.dir/src/main.cpp.obj	aaabcb3cdfa99fe6
+2872	3436	7906297055459824	cash-sloth.exe	7e5deeac89db85fa

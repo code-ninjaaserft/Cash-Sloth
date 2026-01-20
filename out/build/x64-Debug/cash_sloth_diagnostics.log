@@ -1,0 +1,13 @@
+
+--- Diagnostics session 2026-01-20 17:28:26 ---
+[10ms][INFO] Katalog geladen aus: C:\Users\elved\OneDrive\Dokumente\GitHub\Cash-Sloth\out\build\x64-Debug\assets\cash_sloth_catalog.json
+[2309ms][PERF] Ineffizienz erkannt: calculateLayout dauerte 13.52ms (Budget 8.00ms)
+[4276ms][PERF] Ineffizienz erkannt: calculateLayout dauerte 14.54ms (Budget 8.00ms)
+[6276ms][INFO] Performance-Zusammenfassung:
+[6276ms][INFO]   calculateLayout | Aufrufe: 5 | Durchschnitt: 7.60ms | Max: 14.54ms | Budget: 8.00ms | Über Budget: 2
+[6276ms][INFO]   refreshCart | Aufrufe: 1 | Durchschnitt: 0.29ms | Max: 0.29ms | Budget: 6.00ms | Über Budget: 0
+[6276ms][INFO]   loadCatalogue | Aufrufe: 1 | Durchschnitt: 4.31ms | Max: 4.31ms | Budget: 50.00ms | Über Budget: 0
+[6277ms][INFO]   onPaint | Aufrufe: 213 | Durchschnitt: 1.67ms | Max: 5.81ms | Budget: 16.00ms | Über Budget: 0
+[6277ms][INFO]   onCreate | Aufrufe: 1 | Durchschnitt: 29.59ms | Max: 29.59ms | Budget: 60.00ms | Über Budget: 0
+[6277ms][INFO]   rebuildProductButtons | Aufrufe: 1 | Durchschnitt: 12.11ms | Max: 12.11ms | Budget: 14.00ms | Über Budget: 0
+[6277ms][INFO]   buildCategoryButtons | Aufrufe: 1 | Durchschnitt: 3.05ms | Max: 3.05ms | Budget: 12.00ms | Über Budget: 0
